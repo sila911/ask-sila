@@ -23,6 +23,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
+  // 1. Verify Telegram Webhook Secret Token if configured
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (incomingSecret !== webhookSecret) {
+      console.warn('Webhook rejected: Invalid or missing X-Telegram-Bot-Api-Secret-Token');
+      return res.status(403).json({ message: 'Forbidden: Invalid secret token' });
+    }
+  }
+
   try {
     let body = req.body;
     if (typeof body === 'string') {
@@ -37,6 +47,16 @@ export default async function handler(req, res) {
 
     if (!message || (!message.text && !message.caption)) {
       return res.status(200).json({ message: 'Ignored: No text or caption in message' });
+    }
+
+    // 2. Verify Message Origin against TELEGRAM_CHAT_ID
+    const allowedChatId = process.env.TELEGRAM_CHAT_ID;
+    const messageChatId = String(message.chat?.id || '');
+    const messageFromId = String(message.from?.id || '');
+
+    if (allowedChatId && messageChatId !== String(allowedChatId) && messageFromId !== String(allowedChatId)) {
+      console.warn(`Webhook rejected: Unauthorized chat ID ${messageChatId} (expected ${allowedChatId})`);
+      return res.status(403).json({ message: 'Forbidden: Unauthorized Telegram chat origin' });
     }
 
     const text = (message.text || message.caption || '').trim();

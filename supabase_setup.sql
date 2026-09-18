@@ -1,4 +1,8 @@
--- Create Questions Table
+-- =================================================================
+-- Ask Sila Anything — Supabase Database Setup & Security Hardening
+-- =================================================================
+
+-- 1. Create Questions Table
 CREATE TABLE IF NOT EXISTS questions (
     id TEXT PRIMARY KEY,
     question TEXT NOT NULL,
@@ -27,7 +31,11 @@ ALTER TABLE questions ADD COLUMN IF NOT EXISTS notify_handle TEXT;
 CREATE INDEX IF NOT EXISTS questions_status_idx ON questions (status);
 CREATE INDEX IF NOT EXISTS questions_createdAt_idx ON questions ("createdAt");
 
--- Create Designs Table
+-- Length & Spam Constraints
+ALTER TABLE questions DROP CONSTRAINT IF EXISTS chk_question_length;
+ALTER TABLE questions ADD CONSTRAINT chk_question_length CHECK (char_length(trim(question)) >= 4 AND char_length(question) <= 500);
+
+-- 2. Create Designs Table
 CREATE TABLE IF NOT EXISTS designs (
     id TEXT PRIMARY KEY,
     "questionId" TEXT,
@@ -44,7 +52,7 @@ CREATE TABLE IF NOT EXISTS designs (
 CREATE INDEX IF NOT EXISTS designs_questionId_idx ON designs ("questionId");
 CREATE INDEX IF NOT EXISTS designs_updatedAt_idx ON designs ("updatedAt");
 
--- Create Events Table
+-- 3. Create Events Table
 CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,
@@ -53,7 +61,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_createdAt_idx ON events ("createdAt");
 
--- Create Comments Table
+-- 4. Create Comments Table
 CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     "questionId" TEXT NOT NULL,
@@ -70,17 +78,24 @@ ALTER TABLE comments ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{"heart":
 
 CREATE INDEX IF NOT EXISTS comments_questionId_idx ON comments ("questionId");
 
--- Enable Row Level Security (RLS)
+-- Length constraint on comments
+ALTER TABLE comments DROP CONSTRAINT IF EXISTS chk_comment_length;
+ALTER TABLE comments ADD CONSTRAINT chk_comment_length CHECK (char_length(trim(text)) >= 1 AND char_length(text) <= 500);
+
+-- =================================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- =================================================================
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE designs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 
--- Clean up old open policies
+-- Clean up any existing policies
 DROP POLICY IF EXISTS "Public Read Access" ON questions;
 DROP POLICY IF EXISTS "Public Insert Access" ON questions;
 DROP POLICY IF EXISTS "Public Update Access" ON questions;
 DROP POLICY IF EXISTS "Public Delete Access" ON questions;
+DROP POLICY IF EXISTS "Admin Update Access" ON questions;
 DROP POLICY IF EXISTS "Admin Delete Access" ON questions;
 
 DROP POLICY IF EXISTS "Public Read Access" ON designs;
@@ -92,88 +107,293 @@ DROP POLICY IF EXISTS "Admin Update Access" ON designs;
 DROP POLICY IF EXISTS "Admin Delete Access" ON designs;
 
 DROP POLICY IF EXISTS "Public Read Access" ON events;
+DROP POLICY IF EXISTS "Admin Read Access" ON events;
 DROP POLICY IF EXISTS "Public Insert Access" ON events;
 
 DROP POLICY IF EXISTS "Public Read Access" ON comments;
 DROP POLICY IF EXISTS "Public Insert Access" ON comments;
 DROP POLICY IF EXISTS "Public Update Access" ON comments;
 DROP POLICY IF EXISTS "Public Delete Access" ON comments;
+DROP POLICY IF EXISTS "Admin Update Access" ON comments;
 DROP POLICY IF EXISTS "Admin Delete Access" ON comments;
 
--- =================================================================
--- 1. DESIGNS (Published Answers / Cards)
--- Public can ONLY view. Only Admin (or Telegram Bot service_role) can create/edit/delete.
--- =================================================================
+-- -----------------------------------------------------------------
+-- 1. DESIGNS POLICIES
+-- -----------------------------------------------------------------
+-- Anyone can view designs
 CREATE POLICY "Public Read Access" ON designs 
     FOR SELECT 
     USING (true);
 
+-- Only verified admin (semsila.dev@gmail.com) can insert/update/delete designs
 CREATE POLICY "Admin Insert Access" ON designs 
     FOR INSERT 
     TO authenticated 
-    WITH CHECK (true);
+    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
 CREATE POLICY "Admin Update Access" ON designs 
     FOR UPDATE 
     TO authenticated 
-    USING (true);
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
 CREATE POLICY "Admin Delete Access" ON designs 
     FOR DELETE 
     TO authenticated 
-    USING (true);
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
--- =================================================================
--- 2. QUESTIONS (Questions Feed)
--- Public can submit questions, view questions, and react/like.
--- Only Admin can permanently delete questions.
--- =================================================================
+-- -----------------------------------------------------------------
+-- 2. QUESTIONS POLICIES
+-- -----------------------------------------------------------------
+-- Anyone can view questions feed
 CREATE POLICY "Public Read Access" ON questions 
     FOR SELECT 
     USING (true);
 
+-- Anyone can submit a valid question (length checked)
 CREATE POLICY "Public Insert Access" ON questions 
     FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (char_length(trim(question)) >= 4 AND char_length(question) <= 500);
 
-CREATE POLICY "Public Update Access" ON questions 
+-- Only Admin can update questions (e.g. pin, hide, soft-delete, edit text)
+-- NOTE: Public likes/views/reactions are handled via secure RPC functions below!
+CREATE POLICY "Admin Update Access" ON questions 
     FOR UPDATE 
-    USING (true);
+    TO authenticated 
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
+-- Only Admin can permanently delete questions
 CREATE POLICY "Admin Delete Access" ON questions 
     FOR DELETE 
     TO authenticated 
-    USING (true);
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
--- =================================================================
--- 3. COMMENTS
--- Public can read and post comments; only Admin can delete comments.
--- =================================================================
+-- -----------------------------------------------------------------
+-- 3. COMMENTS POLICIES
+-- -----------------------------------------------------------------
+-- Anyone can read comments
 CREATE POLICY "Public Read Access" ON comments 
     FOR SELECT 
     USING (true);
 
+-- Anyone can submit a valid comment
 CREATE POLICY "Public Insert Access" ON comments 
     FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (char_length(trim(text)) >= 1 AND char_length(text) <= 500);
 
-CREATE POLICY "Public Update Access" ON comments 
+-- Only Admin can modify comments
+CREATE POLICY "Admin Update Access" ON comments 
     FOR UPDATE 
-    USING (true);
+    TO authenticated 
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
+-- Only Admin can delete comments
 CREATE POLICY "Admin Delete Access" ON comments 
     FOR DELETE 
     TO authenticated 
-    USING (true);
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
--- =================================================================
--- 4. EVENTS (Analytics / Logging)
--- =================================================================
-CREATE POLICY "Public Read Access" ON events 
+-- -----------------------------------------------------------------
+-- 4. EVENTS POLICIES (Internal Logging & Analytics)
+-- -----------------------------------------------------------------
+-- Only Admin can inspect analytics and user activity logs
+CREATE POLICY "Admin Read Access" ON events 
     FOR SELECT 
-    USING (true);
+    TO authenticated 
+    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
 
+-- Public users can log events (e.g. page views, question submitted)
 CREATE POLICY "Public Insert Access" ON events 
     FOR INSERT 
     WITH CHECK (true);
 
+-- =================================================================
+-- SECURE STORED PROCEDURES (RPCs) FOR ANONYMOUS LIKES & REACTIONS
+-- These execute as SECURITY DEFINER with strict validation, allowing
+-- public reactions without granting generic table UPDATE rights.
+-- =================================================================
+
+-- Function 1: Increment Question Views
+CREATE OR REPLACE FUNCTION increment_question_view(p_question_id TEXT)
+RETURNS INT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    new_views INT;
+BEGIN
+    UPDATE questions
+    SET views_count = COALESCE(views_count, 0) + 1
+    WHERE id = p_question_id AND is_deleted = false
+    RETURNING views_count INTO new_views;
+
+    RETURN COALESCE(new_views, 0);
+END;
+$$;
+
+-- Function 2: React to Question
+CREATE OR REPLACE FUNCTION react_to_question(
+    p_question_id TEXT,
+    p_reaction TEXT,
+    p_prev_reaction TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    curr_reactions JSONB;
+    curr_val INT;
+    total_likes INT := 0;
+    r_key TEXT;
+    val INT;
+BEGIN
+    SELECT COALESCE(reactions, '{"heart": 0, "laugh": 0, "think": 0, "gasp": 0, "fire": 0}'::jsonb)
+    INTO curr_reactions
+    FROM questions
+    WHERE id = p_question_id AND is_deleted = false
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    -- Decrement previous reaction if valid
+    IF p_prev_reaction IS NOT NULL AND p_prev_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_prev_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_prev_reaction], to_jsonb(GREATEST(0, curr_val - 1)));
+    END IF;
+
+    -- Increment new reaction if valid
+    IF p_reaction IS NOT NULL AND p_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_reaction], to_jsonb(curr_val + 1));
+    END IF;
+
+    -- Compute total likes
+    FOR r_key IN SELECT jsonb_object_keys(curr_reactions)
+    LOOP
+        val := COALESCE((curr_reactions->>r_key)::int, 0);
+        total_likes := total_likes + val;
+    END LOOP;
+
+    UPDATE questions
+    SET reactions = curr_reactions,
+        likes_count = total_likes
+    WHERE id = p_question_id;
+
+    RETURN jsonb_build_object('reactions', curr_reactions, 'likes_count', total_likes);
+END;
+$$;
+
+-- Function 3: React to Answer
+CREATE OR REPLACE FUNCTION react_to_answer(
+    p_question_id TEXT,
+    p_reaction TEXT,
+    p_prev_reaction TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    curr_reactions JSONB;
+    curr_val INT;
+    total_likes INT := 0;
+    r_key TEXT;
+    val INT;
+BEGIN
+    SELECT COALESCE(answer_reactions, '{"heart": 0, "laugh": 0, "think": 0, "gasp": 0, "fire": 0}'::jsonb)
+    INTO curr_reactions
+    FROM questions
+    WHERE id = p_question_id AND is_deleted = false
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    IF p_prev_reaction IS NOT NULL AND p_prev_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_prev_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_prev_reaction], to_jsonb(GREATEST(0, curr_val - 1)));
+    END IF;
+
+    IF p_reaction IS NOT NULL AND p_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_reaction], to_jsonb(curr_val + 1));
+    END IF;
+
+    FOR r_key IN SELECT jsonb_object_keys(curr_reactions)
+    LOOP
+        val := COALESCE((curr_reactions->>r_key)::int, 0);
+        total_likes := total_likes + val;
+    END LOOP;
+
+    UPDATE questions
+    SET answer_reactions = curr_reactions,
+        answer_likes_count = total_likes
+    WHERE id = p_question_id;
+
+    RETURN jsonb_build_object('answer_reactions', curr_reactions, 'answer_likes_count', total_likes);
+END;
+$$;
+
+-- Function 4: React to Comment
+CREATE OR REPLACE FUNCTION react_to_comment(
+    p_comment_id TEXT,
+    p_reaction TEXT,
+    p_prev_reaction TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    curr_reactions JSONB;
+    curr_val INT;
+    total_likes INT := 0;
+    r_key TEXT;
+    val INT;
+BEGIN
+    SELECT COALESCE(reactions, '{"heart": 0, "laugh": 0, "think": 0, "gasp": 0, "fire": 0}'::jsonb)
+    INTO curr_reactions
+    FROM comments
+    WHERE id = p_comment_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    IF p_prev_reaction IS NOT NULL AND p_prev_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_prev_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_prev_reaction], to_jsonb(GREATEST(0, curr_val - 1)));
+    END IF;
+
+    IF p_reaction IS NOT NULL AND p_reaction IN ('heart', 'laugh', 'think', 'gasp', 'fire') THEN
+        curr_val := COALESCE((curr_reactions->>p_reaction)::int, 0);
+        curr_reactions := jsonb_set(curr_reactions, ARRAY[p_reaction], to_jsonb(curr_val + 1));
+    END IF;
+
+    FOR r_key IN SELECT jsonb_object_keys(curr_reactions)
+    LOOP
+        val := COALESCE((curr_reactions->>r_key)::int, 0);
+        total_likes := total_likes + val;
+    END LOOP;
+
+    UPDATE comments
+    SET reactions = curr_reactions,
+        likes_count = total_likes
+    WHERE id = p_comment_id;
+
+    RETURN jsonb_build_object('reactions', curr_reactions, 'likes_count', total_likes);
+END;
+$$;
+
+-- Grant execution permissions for RPCs to anon and authenticated roles
+GRANT EXECUTE ON FUNCTION increment_question_view(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION react_to_question(TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION react_to_answer(TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION react_to_comment(TEXT, TEXT, TEXT) TO anon, authenticated;

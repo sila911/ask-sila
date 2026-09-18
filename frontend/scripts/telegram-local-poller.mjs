@@ -42,6 +42,15 @@ async function poll() {
         lastUpdateId = update.update_id;
 
         if (update.message && update.message.text) {
+          const chatId = String(update.message.chat?.id || '');
+          const fromId = String(update.message.from?.id || '');
+          const expectedChatId = String(process.env.TELEGRAM_CHAT_ID || '');
+
+          if (expectedChatId && chatId !== expectedChatId && fromId !== expectedChatId) {
+            console.warn(`⚠️ [Ignored] Message from unauthorized chat/user: ${chatId} / ${fromId}`);
+            continue;
+          }
+
           const sender = update.message.from?.username ? `@${update.message.from.username}` : (update.message.from?.first_name || 'User');
           console.log(`📩 Received message from ${sender}: "${update.message.text}"`);
 
@@ -49,6 +58,9 @@ async function poll() {
 
           const req = {
             method: 'POST',
+            headers: process.env.TELEGRAM_WEBHOOK_SECRET
+              ? { 'x-telegram-bot-api-secret-token': process.env.TELEGRAM_WEBHOOK_SECRET }
+              : {},
             body: { message: update.message },
           };
 

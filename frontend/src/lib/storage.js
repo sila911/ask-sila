@@ -56,6 +56,21 @@ export function createDesign({ text, style, imageDataUrl }) {
 }
 
 export async function getQuestions() {
+  const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }));
+  const fields = session
+    ? '*'
+    : 'id, question, status, is_hidden, is_pinned, is_deleted, likes_count, views_count, answer_likes_count, reactions, answer_reactions, createdAt, answeredAt';
+
+  return handleSupabase(
+    supabase
+      .from('questions')
+      .select(fields)
+      .neq('is_deleted', true)
+      .order('createdAt', { ascending: false })
+  );
+}
+
+export async function getAdminQuestions() {
   return handleSupabase(
     supabase
       .from('questions')
@@ -66,237 +81,111 @@ export async function getQuestions() {
 }
 
 export async function addQuestion(questionText, notifyHandle = null) {
-  // Generate a clean 4-digit random number (1000 - 9999)
-  const newId = Math.floor(1000 + Math.random() * 9000).toString();
-  const newQuestion = {
-    id: newId,
-    question: questionText,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    notify_handle: notifyHandle ? notifyHandle.trim() : null,
-  };
+  const cleanQuestion = (questionText || '').trim();
+  if (cleanQuestion.length < 4 || cleanQuestion.length > 500) {
+    throw new Error('Question must be between 4 and 500 characters.');
+  }
 
-  const { error } = await supabase
-    .from('questions')
-    .insert([newQuestion]);
+  const cleanHandle = notifyHandle ? String(notifyHandle).trim().replace(/^@+/, '') : null;
+  const maxRetries = 3;
 
-  if (error) throw new Error(error.message);
-  return getQuestions();
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Generate clean 6-digit random number (100000 - 999999)
+    const newId = Math.floor(100000 + Math.random() * 900000).toString();
+    const newQuestion = {
+      id: newId,
+      question: cleanQuestion,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      notify_handle: cleanHandle,
+    };
+
+    const { error } = await supabase
+      .from('questions')
+      .insert([newQuestion]);
+
+    if (!error) {
+      return getQuestions();
+    }
+
+    // If duplicate key error (code 23505), retry with a new 6-digit code
+    if (error.code === '23505' && attempt < maxRetries - 1) {
+      continue;
+    }
+
+    throw new Error(error.message);
+  }
 }
 
 export async function likeQuestion(id) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('likes_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = (question.likes_count || 0) + 1;
-  
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-export async function incrementQuestionView(id) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('views_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = (question.views_count || 0) + 1;
-  
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ views_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  return reactToQuestion(id, 'heart', null);
 }
 
 export async function unlikeQuestion(id) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('likes_count')
-    .eq('id', id)
-    .single();
+  return reactToQuestion(id, null, 'heart');
+}
 
-  if (fetchError) throw new Error(fetchError.message);
+export async function incrementQuestionView(id) {
+  const { data, error } = await supabase.rpc('increment_question_view', {
+    p_question_id: id,
+  });
 
-  const newCount = Math.max(0, (question.likes_count || 0) - 1);
-  
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
+  if (error) {
+    console.warn('RPC increment_question_view error:', error.message);
+    return { views_count: 0 };
+  }
 
-  if (error) throw new Error(error.message);
-  return data;
+  return { views_count: data };
 }
 
 export async function reactToQuestion(id, reactionType, previousReaction) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('reactions')
-    .eq('id', id)
-    .single();
+  const { data, error } = await supabase.rpc('react_to_question', {
+    p_question_id: id,
+    p_reaction: reactionType,
+    p_prev_reaction: previousReaction || null,
+  });
 
-  if (fetchError) throw new Error(fetchError.message);
-
-  let reactions = question.reactions || { heart: 0, laugh: 0, think: 0, gasp: 0, fire: 0 };
-
-  // 1. Decrement previous reaction
-  if (previousReaction && reactions[previousReaction] !== undefined) {
-    reactions[previousReaction] = Math.max(0, reactions[previousReaction] - 1);
+  if (error) {
+    console.error('RPC react_to_question error:', error.message);
+    throw new Error(error.message);
   }
-
-  // 2. Increment new reaction
-  if (reactionType && reactions[reactionType] !== undefined) {
-    reactions[reactionType] = (reactions[reactionType] || 0) + 1;
-  }
-
-  // 3. Compute total likes count
-  const totalLikes = Object.values(reactions).reduce((sum, val) => sum + (val || 0), 0);
-
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ reactions, likes_count: totalLikes })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
   return data;
 }
 
 export async function reactToAnswer(id, reactionType, previousReaction) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('answer_reactions')
-    .eq('id', id)
-    .single();
+  const { data, error } = await supabase.rpc('react_to_answer', {
+    p_question_id: id,
+    p_reaction: reactionType,
+    p_prev_reaction: previousReaction || null,
+  });
 
-  if (fetchError) throw new Error(fetchError.message);
-
-  let reactions = question.answer_reactions || { heart: 0, laugh: 0, think: 0, gasp: 0, fire: 0 };
-
-  // 1. Decrement previous reaction
-  if (previousReaction && reactions[previousReaction] !== undefined) {
-    reactions[previousReaction] = Math.max(0, reactions[previousReaction] - 1);
+  if (error) {
+    console.error('RPC react_to_answer error:', error.message);
+    throw new Error(error.message);
   }
-
-  // 2. Increment new reaction
-  if (reactionType && reactions[reactionType] !== undefined) {
-    reactions[reactionType] = (reactions[reactionType] || 0) + 1;
-  }
-
-  // 3. Compute total likes count
-  const totalLikes = Object.values(reactions).reduce((sum, val) => sum + (val || 0), 0);
-
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ answer_reactions: reactions, answer_likes_count: totalLikes })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
   return data;
 }
 
 export async function reactToComment(id, reactionType, previousReaction) {
-  const { data: comment, error: fetchError } = await supabase
-    .from('comments')
-    .select('reactions')
-    .eq('id', id)
-    .single();
+  const { data, error } = await supabase.rpc('react_to_comment', {
+    p_comment_id: id,
+    p_reaction: reactionType,
+    p_prev_reaction: previousReaction || null,
+  });
 
-  if (fetchError) throw new Error(fetchError.message);
-
-  let reactions = comment.reactions || { heart: 0, laugh: 0, think: 0, gasp: 0, fire: 0 };
-
-  // 1. Decrement previous reaction
-  if (previousReaction && reactions[previousReaction] !== undefined) {
-    reactions[previousReaction] = Math.max(0, reactions[previousReaction] - 1);
+  if (error) {
+    console.error('RPC react_to_comment error:', error.message);
+    throw new Error(error.message);
   }
-
-  // 2. Increment new reaction
-  if (reactionType && reactions[reactionType] !== undefined) {
-    reactions[reactionType] = (reactions[reactionType] || 0) + 1;
-  }
-
-  // 3. Compute total likes count
-  const totalLikes = Object.values(reactions).reduce((sum, val) => sum + (val || 0), 0);
-
-  const { data, error } = await supabase
-    .from('comments')
-    .update({ reactions, likes_count: totalLikes })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
   return data;
 }
 
 export async function likeAnswer(id) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('answer_likes_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = (question.answer_likes_count || 0) + 1;
-  
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ answer_likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  return reactToAnswer(id, 'heart', null);
 }
 
 export async function unlikeAnswer(id) {
-  const { data: question, error: fetchError } = await supabase
-    .from('questions')
-    .select('answer_likes_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = Math.max(0, (question.answer_likes_count || 0) - 1);
-  
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ answer_likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  return reactToAnswer(id, null, 'heart');
 }
 
 export async function toggleQuestionVisibility(id, isHidden) {
@@ -433,45 +322,9 @@ export async function addComment(questionId, text) {
 }
 
 export async function likeComment(id) {
-  const { data: comment, error: fetchError } = await supabase
-    .from('comments')
-    .select('likes_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = (comment.likes_count || 0) + 1;
-
-  const { data, error } = await supabase
-    .from('comments')
-    .update({ likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  return reactToComment(id, 'heart', null);
 }
 
 export async function unlikeComment(id) {
-  const { data: comment, error: fetchError } = await supabase
-    .from('comments')
-    .select('likes_count')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const newCount = Math.max(0, (comment.likes_count || 0) - 1);
-
-  const { data, error } = await supabase
-    .from('comments')
-    .update({ likes_count: newCount })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  return reactToComment(id, null, 'heart');
 }

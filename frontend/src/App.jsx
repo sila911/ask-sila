@@ -93,6 +93,7 @@ export default function App() {
     if (res.ok) {
       changeTabWithDirection("create");
       trackEvent("admin_login_2fa");
+      loadData(true);
       showAdminToast("Admin Unlocked", "Welcome back to admin workspace.", "success");
     }
     return res;

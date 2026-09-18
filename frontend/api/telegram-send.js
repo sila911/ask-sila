@@ -1,3 +1,10 @@
+const sendStore = globalThis.__telegramSendStore || new Map();
+globalThis.__telegramSendStore = sendStore;
+
+if (sendStore.size > 2000) {
+  sendStore.clear();
+}
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -13,10 +20,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const { question, questionId, notifyHandle } = req.body;
+  // Rate limit: max 5 notifications per 10 minutes per IP
+  const clientIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'client').split(',')[0].trim();
+  const now = Date.now();
+  const ipKey = `send:${clientIp}`;
+  const timestamps = (sendStore.get(ipKey) || []).filter(ts => now - ts < 10 * 60 * 1000);
 
-  if (!question) {
-    return res.status(400).json({ message: 'Question is required' });
+  if (timestamps.length >= 5) {
+    return res.status(429).json({ message: 'Too many question notifications sent recently. Please try again later.' });
+  }
+  timestamps.push(now);
+  sendStore.set(ipKey, timestamps);
+
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
+
+  const { question, questionId, notifyHandle } = body || {};
+
+  const cleanQuestion = typeof question === 'string' ? question.trim() : '';
+  if (!cleanQuestion || cleanQuestion.length < 4 || cleanQuestion.length > 500) {
+    return res.status(400).json({ message: 'Valid question text between 4 and 500 characters is required' });
   }
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -27,10 +56,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ message: 'Server configuration error' });
   }
 
-  const safeQuestion = escapeHtml(question);
-  const cleanId = questionId ? escapeHtml(questionId) : null;
-  const cleanHandle = notifyHandle 
-    ? `@${escapeHtml(String(notifyHandle).trim().replace(/^@+/, ''))}` 
+  const safeQuestion = escapeHtml(cleanQuestion);
+  const cleanId = questionId && /^[a-zA-Z0-9_-]{1,64}$/.test(String(questionId).trim())
+    ? escapeHtml(String(questionId).trim())
+    : null;
+
+  const rawHandle = notifyHandle ? String(notifyHandle).trim().replace(/^@+/, '').slice(0, 50) : null;
+  const cleanHandle = rawHandle && /^[a-zA-Z0-9_]+$/.test(rawHandle)
+    ? `@${escapeHtml(rawHandle)}`
     : null;
 
   let text = `🌟 <b>New Question on Ask Sila</b>:\n\n"${safeQuestion}"`;

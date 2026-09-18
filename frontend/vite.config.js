@@ -30,6 +30,14 @@ function apiDevPlugin() {
                 lastUpdateId = update.update_id;
 
                 if (update.message && update.message.text) {
+                  const chatId = String(update.message.chat?.id || '');
+                  const fromId = String(update.message.from?.id || '');
+                  const expectedChatId = String(process.env.TELEGRAM_CHAT_ID || '');
+
+                  if (expectedChatId && chatId !== expectedChatId && fromId !== expectedChatId) {
+                    continue;
+                  }
+
                   const sender = update.message.from?.username ? `@${update.message.from.username}` : (update.message.from?.first_name || 'User');
                   console.log(`\n🤖 [Telegram Bot] Received: "${update.message.text}" from ${sender}`);
 
@@ -37,6 +45,9 @@ function apiDevPlugin() {
                     const { default: webhookHandler } = await import('./api/telegram-webhook.js');
                     const fakeReq = {
                       method: 'POST',
+                      headers: process.env.TELEGRAM_WEBHOOK_SECRET
+                        ? { 'x-telegram-bot-api-secret-token': process.env.TELEGRAM_WEBHOOK_SECRET }
+                        : {},
                       body: { message: update.message },
                     };
                     const fakeRes = {
