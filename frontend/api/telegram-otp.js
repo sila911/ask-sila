@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 // In-memory attempt & cooldown store across requests within container lifecycle
 const attemptStore = globalThis.__otpAttemptStore || new Map();
 globalThis.__otpAttemptStore = attemptStore;
