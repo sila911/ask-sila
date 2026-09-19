@@ -66,7 +66,7 @@ export function useAdminAuth() {
     if (!otpRes.ok) {
       return {
         ok: false,
-        message: "Authentication service unavailable. Please try again.",
+        message: otpRes.message || "Authentication service unavailable. Please try again.",
       };
     }
 
