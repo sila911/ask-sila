@@ -1,5 +1,7 @@
 # Ask Sila Anything
 
+[![wakatime](https://wakatime.com/badge/user/6fa73df2-a15a-4bf9-9e30-165242109616/project/ad5bad6c-a934-4da2-bf8f-cf6d12b4350a.svg)](https://wakatime.com/badge/user/6fa73df2-a15a-4bf9-9e30-165242109616/project/ad5bad6c-a934-4da2-bf8f-cf6d12b4350a)
+
 An interactive, real-time anonymous Q&A web platform and social media story creator built with **React**, **Tailwind CSS**, and **Supabase**.
 
 ---
