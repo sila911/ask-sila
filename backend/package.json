@@ -9,6 +9,8 @@
     "start": "node src/server.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:migrate-supabase": "node src/scripts/migrateFromSupabase.js",
+    "db:import-csv": "node src/scripts/importFromCsv.js",
     "seed:admin": "node src/scripts/seedAdmin.js"
   },
   "dependencies": {
@@ -16,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.1",
     "express": "^4.21.2",
