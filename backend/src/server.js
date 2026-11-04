@@ -12,8 +12,18 @@ async function startServer() {
     client.release();
     console.log(`✅ Connected to Neon Postgres database: ${result.rows[0].current_database}`);
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Ask Sila Backend Server listening on http://localhost:${PORT}`);
+    });
+
+    server.on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        console.error(`❌ Port ${PORT} is already in use by another process.`);
+        console.error(`💡 Tip: Run 'npx kill-port ${PORT}' or close the other process.`);
+      } else {
+        console.error("❌ Server error:", err);
+      }
+      process.exit(1);
     });
   } catch (err) {
     console.error("❌ Failed to start server:", err);
