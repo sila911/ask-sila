@@ -17,3 +17,5 @@ frontend/dist/
 frontend/.env
 backend/data/
 *.csv
+.neon
+.env.local

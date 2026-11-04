@@ -4,11 +4,16 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// 1. Try backend/.env
+// Load in order of precedence: local overrides > base env
+// 1. Root .env.local (generated/managed by `neon deploy`)
+dotenv.config({ path: path.resolve(__dirname, "../../../.env.local") });
+// 2. Backend .env.local
+dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
+// 3. Backend .env
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
-// 2. Try root .env if running from workspace root
+// 4. Root .env
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
-// 3. Fallback to process.cwd()
+// 5. Fallback process.cwd()
 dotenv.config();
 
 export default process.env;
