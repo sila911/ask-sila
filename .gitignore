@@ -10,6 +10,7 @@ backend/storage/framework/sessions/*
 backend/storage/framework/views/*.php
 backend/storage/logs/*.log
 backend/bootstrap/cache/*.php
+backend/node_modules/
 backend/.env
 frontend/node_modules/
 frontend/dist/

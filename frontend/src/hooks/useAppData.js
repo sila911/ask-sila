@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { supabase } from "../lib/supabase";
 import {
   addEvent,
   addQuestion,
@@ -66,25 +65,13 @@ export function useAppData(showAdminToast) {
   useEffect(() => {
     loadData();
 
-    // Real-time subscriptions
-    const channel = supabase
-      .channel("public_changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "questions" }, () => {
-        setHasNewQuestions(true);
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "comments" }, (payload) => {
-        setComments((prev) => prev.map((c) => (c.id === payload.new.id ? payload.new : c)));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments" }, (payload) => {
-        setComments((prev) => {
-          if (prev.some((c) => c.id === payload.new.id)) return prev;
-          return [...prev, payload.new];
-        });
-      })
-      .subscribe();
+    // Background refresh every 25 seconds
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 25000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
 import {
   verifyOrSetupPassword,
   requestTelegramOtp,
@@ -8,10 +7,11 @@ import {
   is2FAVerified,
   set2FAVerified,
   clear2FAVerified,
+  hasAdminPassword,
 } from "../lib/adminAccess";
 
 /**
- * Manages admin authentication state, 2FA verification, and Supabase auth listeners.
+ * Manages admin authentication state, 2FA verification, and backend auth checks.
  */
 export function useAdminAuth() {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -19,33 +19,18 @@ export function useAdminAuth() {
 
   useEffect(() => {
     // Check existing session and 2FA verification on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && is2FAVerified()) {
-        setIsAdminUnlocked(true);
-      } else {
-        setIsAdminUnlocked(false);
-      }
-      setIsAuthChecking(false);
-    }).catch(() => {
-      setIsAuthChecking(false);
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") {
-        if (is2FAVerified()) {
+    hasAdminPassword()
+      .then((authenticated) => {
+        if (authenticated && is2FAVerified()) {
           setIsAdminUnlocked(true);
+        } else {
+          setIsAdminUnlocked(false);
         }
-      } else if (event === "SIGNED_OUT") {
-        clear2FAVerified();
-        setIsAdminUnlocked(false);
-      }
-      setIsAuthChecking(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+        setIsAuthChecking(false);
+      })
+      .catch(() => {
+        setIsAuthChecking(false);
+      });
   }, []);
 
   /**
@@ -61,21 +46,12 @@ export function useAdminAuth() {
       return { ok: false, message: verify.message || "Wrong admin password." };
     }
 
-    // Password verified! Now dispatch Telegram 2FA OTP
-    const otpRes = await requestTelegramOtp();
-    if (!otpRes.ok) {
-      return {
-        ok: false,
-        message: otpRes.message || "Authentication service unavailable. Please try again.",
-      };
-    }
-
     return {
       ok: true,
       requires2FA: true,
-      token: otpRes.token,
-      expiresAt: otpRes.expiresAt,
-      message: otpRes.message,
+      token: verify.token,
+      expiresAt: verify.expiresAt,
+      message: verify.message,
     };
   };
 

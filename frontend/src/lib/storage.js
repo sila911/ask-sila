@@ -1,41 +1,21 @@
-import { supabase } from './supabase';
-
-// Helper for handling Supabase errors
-async function handleSupabase(promise) {
-  const { data, error } = await promise;
-  if (error) {
-    console.error('Supabase Error:', error);
-    throw new Error(error.message);
-  }
-  return data;
-}
+import { apiRequest } from "./apiClient";
 
 export async function getDesigns() {
-  return handleSupabase(
-    supabase
-      .from('designs')
-      .select('*')
-      .order('updatedAt', { ascending: false })
-  );
+  const res = await apiRequest("/designs");
+  return res.data || [];
 }
 
 export async function deleteDesign(id) {
-  const { error } = await supabase
-    .from('designs')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw new Error(error.message);
+  await apiRequest(`/designs/${id}`, { method: "DELETE" });
   return getDesigns();
 }
 
 export async function saveDesigns(designs) {
-  const { error } = await supabase
-    .from('designs')
-    .upsert(designs);
-  
-  if (error) throw new Error(error.message);
-  return getDesigns();
+  const res = await apiRequest("/designs", {
+    method: "POST",
+    body: designs,
+  });
+  return res.data || [];
 }
 
 export function createDesign({ text, style, imageDataUrl }) {
@@ -56,192 +36,122 @@ export function createDesign({ text, style, imageDataUrl }) {
 }
 
 export async function getQuestions() {
-  const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }));
-  const fields = session
-    ? '*'
-    : 'id, question, status, is_hidden, is_pinned, is_deleted, likes_count, views_count, answer_likes_count, reactions, answer_reactions, createdAt, answeredAt';
-
-  return handleSupabase(
-    supabase
-      .from('questions')
-      .select(fields)
-      .neq('is_deleted', true)
-      .order('createdAt', { ascending: false })
-  );
+  const res = await apiRequest("/questions");
+  return res.data || [];
 }
 
 export async function getAdminQuestions() {
-  return handleSupabase(
-    supabase
-      .from('questions')
-      .select('*')
-      .neq('is_deleted', true)
-      .order('createdAt', { ascending: false })
-  );
+  const res = await apiRequest("/questions/admin");
+  return res.data || [];
 }
 
 export async function addQuestion(questionText, notifyHandle = null) {
-  const cleanQuestion = (questionText || '').trim();
+  const cleanQuestion = (questionText || "").trim();
   if (cleanQuestion.length < 4 || cleanQuestion.length > 500) {
-    throw new Error('Question must be between 4 and 500 characters.');
+    throw new Error("Question must be between 4 and 500 characters.");
   }
 
-  const cleanHandle = notifyHandle ? String(notifyHandle).trim().replace(/^@+/, '') : null;
-  const maxRetries = 3;
+  const cleanHandle = notifyHandle ? String(notifyHandle).trim().replace(/^@+/, "") : null;
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    // Generate clean 6-digit random number (100000 - 999999)
-    const newId = Math.floor(100000 + Math.random() * 900000).toString();
-    const newQuestion = {
-      id: newId,
+  const res = await apiRequest("/questions", {
+    method: "POST",
+    body: {
       question: cleanQuestion,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      notify_handle: cleanHandle,
-    };
+      notifyHandle: cleanHandle,
+    },
+  });
 
-    const { error } = await supabase
-      .from('questions')
-      .insert([newQuestion]);
-
-    if (!error) {
-      return getQuestions();
-    }
-
-    // If duplicate key error (code 23505), retry with a new 6-digit code
-    if (error.code === '23505' && attempt < maxRetries - 1) {
-      continue;
-    }
-
-    throw new Error(error.message);
-  }
+  return res.data;
 }
 
 export async function likeQuestion(id) {
-  return reactToQuestion(id, 'heart', null);
+  return reactToQuestion(id, "heart", null);
 }
 
 export async function unlikeQuestion(id) {
-  return reactToQuestion(id, null, 'heart');
+  return reactToQuestion(id, null, "heart");
 }
 
 export async function incrementQuestionView(id) {
-  const { data, error } = await supabase.rpc('increment_question_view', {
-    p_question_id: id,
-  });
-
-  if (error) {
-    console.warn('RPC increment_question_view error:', error.message);
+  try {
+    const res = await apiRequest(`/questions/${id}/view`, { method: "POST" });
+    return { views_count: res.views_count || 0 };
+  } catch (error) {
+    console.warn("Increment question view error:", error.message);
     return { views_count: 0 };
   }
-
-  return { views_count: data };
 }
 
 export async function reactToQuestion(id, reactionType, previousReaction) {
-  const { data, error } = await supabase.rpc('react_to_question', {
-    p_question_id: id,
-    p_reaction: reactionType,
-    p_prev_reaction: previousReaction || null,
+  const res = await apiRequest(`/questions/${id}/react`, {
+    method: "POST",
+    body: { reactionType, previousReaction },
   });
-
-  if (error) {
-    console.error('RPC react_to_question error:', error.message);
-    throw new Error(error.message);
-  }
-  return data;
+  return res;
 }
 
 export async function reactToAnswer(id, reactionType, previousReaction) {
-  const { data, error } = await supabase.rpc('react_to_answer', {
-    p_question_id: id,
-    p_reaction: reactionType,
-    p_prev_reaction: previousReaction || null,
+  const res = await apiRequest(`/questions/${id}/react-answer`, {
+    method: "POST",
+    body: { reactionType, previousReaction },
   });
-
-  if (error) {
-    console.error('RPC react_to_answer error:', error.message);
-    throw new Error(error.message);
-  }
-  return data;
+  return res;
 }
 
 export async function reactToComment(id, reactionType, previousReaction) {
-  const { data, error } = await supabase.rpc('react_to_comment', {
-    p_comment_id: id,
-    p_reaction: reactionType,
-    p_prev_reaction: previousReaction || null,
+  const res = await apiRequest(`/comments/${id}/react`, {
+    method: "POST",
+    body: { reactionType, previousReaction },
   });
-
-  if (error) {
-    console.error('RPC react_to_comment error:', error.message);
-    throw new Error(error.message);
-  }
-  return data;
+  return res;
 }
 
 export async function likeAnswer(id) {
-  return reactToAnswer(id, 'heart', null);
+  return reactToAnswer(id, "heart", null);
 }
 
 export async function unlikeAnswer(id) {
-  return reactToAnswer(id, null, 'heart');
+  return reactToAnswer(id, null, "heart");
 }
 
 export async function toggleQuestionVisibility(id, isHidden) {
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ is_hidden: isHidden })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  const res = await apiRequest(`/questions/${id}`, {
+    method: "PATCH",
+    body: { is_hidden: isHidden },
+  });
+  return res.data;
 }
 
 export async function toggleQuestionPin(id, isPinned) {
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ is_pinned: isPinned })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  const res = await apiRequest(`/questions/${id}`, {
+    method: "PATCH",
+    body: { is_pinned: isPinned },
+  });
+  return res.data;
 }
 
 export async function softDeleteQuestion(id) {
-  const { data, error } = await supabase
-    .from('questions')
-    .update({ is_deleted: true })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  const res = await apiRequest(`/questions/${id}`, {
+    method: "DELETE",
+  });
+  return res.data;
 }
 
 export async function updateQuestionDetails(id, fields) {
-  const { data, error } = await supabase
-    .from('questions')
-    .update(fields)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  const res = await apiRequest(`/questions/${id}`, {
+    method: "PATCH",
+    body: fields,
+  });
+  return res.data;
 }
 
 export async function saveQuestions(questions) {
-  const { error } = await supabase
-    .from('questions')
-    .upsert(questions);
-  
-  if (error) throw new Error(error.message);
+  // Update details for each question
+  for (const q of questions) {
+    if (q.id) {
+      await updateQuestionDetails(q.id, q);
+    }
+  }
   return getQuestions();
 }
 
@@ -269,62 +179,35 @@ export function markQuestionAnswered(questions, questionId) {
 }
 
 export async function getEvents() {
-  return handleSupabase(
-    supabase
-      .from('events')
-      .select('*')
-      .order('createdAt', { ascending: false })
-  );
+  const res = await apiRequest("/events");
+  return res.data || [];
 }
 
 export async function addEvent(type, meta = {}) {
-  const newEvent = {
-    id: crypto.randomUUID(),
-    type,
-    meta,
-    createdAt: new Date().toISOString(),
-  };
-
-  const { error } = await supabase
-    .from('events')
-    .insert([newEvent]);
-
-  if (error) throw new Error(error.message);
-  return getEvents();
+  const res = await apiRequest("/events", {
+    method: "POST",
+    body: { type, meta },
+  });
+  return res.data;
 }
 
 export async function getComments() {
-  return handleSupabase(
-    supabase
-      .from('comments')
-      .select('*')
-      .order('createdAt', { ascending: true })
-  );
+  const res = await apiRequest("/comments");
+  return res.data || [];
 }
 
 export async function addComment(questionId, text) {
-  const newComment = {
-    id: crypto.randomUUID(),
-    questionId,
-    text,
-    author: 'Anonymous',
-    createdAt: new Date().toISOString(),
-    likes_count: 0,
-    reactions: { heart: 0, laugh: 0, think: 0, gasp: 0, fire: 0 }
-  };
-
-  const { error } = await supabase
-    .from('comments')
-    .insert([newComment]);
-
-  if (error) throw new Error(error.message);
-  return newComment;
+  const res = await apiRequest("/comments", {
+    method: "POST",
+    body: { questionId, text },
+  });
+  return res.data;
 }
 
 export async function likeComment(id) {
-  return reactToComment(id, 'heart', null);
+  return reactToComment(id, "heart", null);
 }
 
 export async function unlikeComment(id) {
-  return reactToComment(id, null, 'heart');
+  return reactToComment(id, null, "heart");
 }

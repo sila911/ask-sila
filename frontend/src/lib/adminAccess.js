@@ -1,7 +1,8 @@
-import { supabase } from "./supabase";
+import { apiRequest } from "./apiClient";
 
 const ADMIN_EMAIL = "semsila.dev@gmail.com";
 const TWO_FACTOR_KEY = "sila_admin_2fa_verified";
+const ADMIN_TOKEN_KEY = "sila_admin_token";
 
 export function is2FAVerified() {
   if (typeof window === "undefined") return false;
@@ -20,47 +21,43 @@ export function set2FAVerified(verified = true) {
 export function clear2FAVerified() {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(TWO_FACTOR_KEY);
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
 }
 
-export function hasAdminPassword() {
-  // Check if there is an active session
-  return !!supabase.auth.getSession();
+export async function hasAdminPassword() {
+  try {
+    const res = await apiRequest("/auth/me");
+    return res.authenticated === true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export async function verifyOrSetupPassword(password) {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: ADMIN_EMAIL,
-      password: password,
+    const data = await apiRequest("/auth/login", {
+      method: "POST",
+      body: { password },
     });
 
-    if (error) {
-      return { ok: false, message: error.message };
-    }
-
-    if (data.session) {
-      return { ok: true, created: false };
-    }
+    return {
+      ok: true,
+      requires2FA: data.requires2fa,
+      token: data.token,
+      expiresAt: data.expiresAt,
+      message: data.message,
+    };
   } catch (error) {
-    return { ok: false, message: error.message };
+    return { ok: false, message: error.message || "Login failed." };
   }
-  return { ok: false, message: "Login failed." };
 }
 
 export async function requestTelegramOtp() {
   try {
-    const res = await fetch("/api/telegram-otp", {
+    const data = await apiRequest("/auth/request-otp", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "send" }),
     });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      return {
-        ok: false,
-        message: data.message || "Failed to send OTP to Telegram.",
-      };
-    }
+
     return {
       ok: true,
       token: data.token,
@@ -68,39 +65,33 @@ export async function requestTelegramOtp() {
       message: data.message || "Verification code sent to Telegram.",
     };
   } catch (error) {
-    console.error("Error requesting Telegram OTP:", error);
     return {
       ok: false,
-      message: "Network error sending OTP. Please try again.",
+      message: error.message || "Network error sending OTP. Please try again.",
     };
   }
 }
 
 export async function verifyTelegramOtp(otp, token) {
   try {
-    const res = await fetch("/api/telegram-otp", {
+    const data = await apiRequest("/auth/verify-2fa", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "verify",
+      body: {
         otp: String(otp).trim(),
         token: token,
-      }),
+      },
     });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      return {
-        ok: false,
-        message: data.message || "Invalid or expired OTP code.",
-      };
+
+    if (data.token && typeof window !== "undefined") {
+      localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
     }
+
     set2FAVerified(true);
     return { ok: true, message: data.message || "2FA verified successfully." };
   } catch (error) {
-    console.error("Error verifying Telegram OTP:", error);
     return {
       ok: false,
-      message: "Network error verifying OTP. Please try again.",
+      message: error.message || "Invalid or expired OTP code.",
     };
   }
 }
@@ -108,18 +99,15 @@ export async function verifyTelegramOtp(otp, token) {
 export async function requestPasswordReset(inputEmail) {
   const email = (inputEmail || "").trim().toLowerCase();
   if (email !== ADMIN_EMAIL.toLowerCase()) {
-    throw new Error("Email doesn't match");
+    throw new Error("Email doesn't match admin email.");
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(ADMIN_EMAIL);
-  if (error) throw new Error(error.message);
-  return { message: "6-digit reset code sent to your Gmail!" };
+  const res = await apiRequest("/auth/request-otp", { method: "POST" });
+  return { message: "6-digit reset code sent to your Telegram!" };
 }
 
-export async function submitPasswordReset(code, newPassword, inputEmail) {
-  const email = (inputEmail || ADMIN_EMAIL).trim().toLowerCase();
+export async function submitPasswordReset(code, newPassword, token) {
   const cleanCode = String(code).trim();
-
   if (!cleanCode || cleanCode.length < 6) {
     throw new Error("Please enter the full 6-digit verification code.");
   }
@@ -127,47 +115,31 @@ export async function submitPasswordReset(code, newPassword, inputEmail) {
     throw new Error("New password must be at least 4 characters.");
   }
 
-  // Verify OTP code with Supabase auth recovery
-  const { error } = await supabase.auth.verifyOtp({
-    email: email,
-    token: cleanCode,
-    type: "recovery",
+  const res = await apiRequest("/auth/reset-password", {
+    method: "POST",
+    body: {
+      code: cleanCode,
+      token,
+      newPassword,
+    },
   });
 
-  if (error) {
-    // Fallback attempt for email otp type
-    const retry = await supabase.auth.verifyOtp({
-      email: email,
-      token: cleanCode,
-      type: "email",
-    });
-    if (retry.error) {
-      throw new Error(
-        error.message ||
-          retry.error.message ||
-          "Invalid or expired 6-digit code.",
-      );
-    }
-  }
-
-  // Update password once OTP is verified
-  const { error: updateError } = await supabase.auth.updateUser({
-    password: newPassword,
-  });
-
-  if (updateError) throw new Error(updateError.message);
-  return { message: "Password reset successful! You can now unlock." };
+  return { message: res.message || "Password reset successful!" };
 }
 
 export async function logoutAdmin() {
   clear2FAVerified();
-  await supabase.auth.signOut();
+  try {
+    await apiRequest("/auth/logout", { method: "POST" });
+  } catch (err) {
+    // Ignore network error on logout
+  }
 }
 
-// Legacy functions kept for compatibility
 export async function createEncryptedAdminToken() {
   return "";
 }
+
 export async function validateEncryptedAdminToken() {
   return false;
 }
