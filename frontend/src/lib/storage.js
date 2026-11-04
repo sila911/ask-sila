@@ -179,8 +179,13 @@ export function markQuestionAnswered(questions, questionId) {
 }
 
 export async function getEvents() {
-  const res = await apiRequest("/events");
-  return res.data || [];
+  try {
+    const res = await apiRequest("/events");
+    return res.data || [];
+  } catch (error) {
+    // Non-admin visitors are not authorized to view analytics events
+    return [];
+  }
 }
 
 export async function addEvent(type, meta = {}) {

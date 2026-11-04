@@ -7,22 +7,20 @@ export default function ThankYouModal({ isOpen, onClose }) {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
+    let timer;
     if (isOpen) {
       setShouldRender(true);
-      const frame = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimationState('visible');
-        });
-      });
-      return () => cancelAnimationFrame(frame);
+      timer = setTimeout(() => {
+        setAnimationState('visible');
+      }, 30);
     } else {
       setAnimationState('hidden-bottom');
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setShouldRender(false);
         setAnimationState('hidden-top');
       }, 500);
-      return () => clearTimeout(timer);
     }
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   useEffect(() => {

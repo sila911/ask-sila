@@ -101,23 +101,46 @@ export function useAppData(showAdminToast) {
   const submitUserQuestion = async (questionText, notifyHandle = null) => {
     try {
       const persisted = await addQuestion(questionText, notifyHandle);
-      setQuestions(persisted);
+      const newQuestionObj = Array.isArray(persisted) ? persisted[0] : persisted;
+
+      const formatted = newQuestionObj
+        ? {
+            ...newQuestionObj,
+            likes_count: newQuestionObj.likesCount ?? newQuestionObj.likes_count ?? 0,
+            views_count: newQuestionObj.viewsCount ?? newQuestionObj.views_count ?? 0,
+            answer_likes_count:
+              newQuestionObj.answerLikesCount ?? newQuestionObj.answer_likes_count ?? 0,
+            is_hidden: newQuestionObj.isHidden ?? newQuestionObj.is_hidden ?? false,
+            is_pinned: newQuestionObj.isPinned ?? newQuestionObj.is_pinned ?? false,
+            is_deleted: newQuestionObj.isDeleted ?? newQuestionObj.is_deleted ?? false,
+            notify_handle:
+              newQuestionObj.notifyHandle ?? newQuestionObj.notify_handle ?? null,
+          }
+        : null;
+
+      if (formatted) {
+        setQuestions((prev) => {
+          const currentList = Array.isArray(prev) ? prev : [];
+          if (currentList.some((q) => q.id === formatted.id)) return currentList;
+          return [formatted, ...currentList];
+        });
+      }
+
       trackEvent("question_submitted");
       setHasAskedQuestion(true);
       localStorage.setItem("hasAskedQuestion", "true");
 
-      const newQuestion = persisted.find(
-        (q) => q.question === questionText && q.status === "pending"
-      );
-      const questionId = newQuestion ? newQuestion.id : null;
+      const questionId = formatted?.id || null;
 
       fetch("/api/telegram-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: questionText, questionId, notifyHandle }),
       }).catch((err) => console.error("Failed to send Telegram notification:", err));
+
+      return formatted;
     } catch (error) {
-      console.error(error);
+      console.error("submitUserQuestion error:", error);
       throw error;
     }
   };
