@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Heart, Tag, Message, Eye, Send2, Lock, Check, ArrowDown2 } from "iconsax-react";
+import { Heart, Tag, Message, Eye, Send2, Lock, Check, ArrowDown2, AttachSquare } from "iconsax-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ShareModal from "./ShareModal";
 import CommentModal from "./CommentModal";
@@ -251,8 +251,11 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
     <div
       ref={cardRef}
       key={q.id}
-      className={`glass-shell glass-shell--3d w-full h-auto flex flex-col gap-3.5 p-3 sm:p-5 rounded-2xl text-slate-900 dark:text-white ${isSingleView ? 'shadow-2xl' : ''}`}
+      className={`relative w-full h-auto flex flex-col gap-3.5 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.25rem] overflow-hidden bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.12)] dark:hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.5)] hover:border-cyan-500/30 dark:hover:border-cyan-400/25 transition-all duration-300 text-slate-900 dark:text-white ${isSingleView ? 'shadow-2xl' : ''}`}
     >
+      {/* Specular top rim highlight for iOS Liquid Glass */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 dark:via-cyan-400/30 to-transparent" />
+
       {isLocked && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-xl">
           <div className="flex flex-col items-center gap-3 animate-in zoom-in duration-300">
@@ -276,19 +279,22 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
             className={`flex items-center gap-3 ${!isSingleView ? "hover:opacity-80 transition-opacity cursor-pointer" : "cursor-default"}`}
             title={!isSingleView ? "View detail page" : ""}
           >
-            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-white shadow-lg border border-white/10">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center shrink-0 overflow-hidden text-white shadow-md border border-white/80 dark:border-white/10">
               <span className="text-lg">👻</span>
             </div>
             <div>
-              <p className="text-slate-800 dark:text-slate-100 font-medium hover:underline">Anonymous</p>
-              <p className="text-slate-500 dark:text-slate-400 text-xs">{timeAgo(q.createdAt)}</p>
+              <p className="text-slate-900 dark:text-slate-100 font-semibold text-sm hover:underline">Anonymous</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">{timeAgo(q.createdAt)}</p>
             </div>
           </Link>
           <div className="flex items-center gap-2">
             {!isSingleView && q.is_pinned && (
-              <img src="https://img.icons8.com/ios-filled/50/pin--v1.png" alt="Pinned" className="w-4 h-4 opacity-50 dark:invert" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shadow-sm">
+                <AttachSquare size={12} variant="Bold" />
+                <span>Pinned</span>
+              </span>
             )}
-            <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/50 border border-white/60 dark:bg-white/10 dark:border-white/20 text-cyan-700 dark:text-cyan-400 whitespace-nowrap font-bold shadow-sm backdrop-blur-sm">
+            <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 text-cyan-700 dark:text-cyan-400 whitespace-nowrap font-bold shadow-sm backdrop-blur-md">
               <span>{tags[tagIndex]}</span>
               <Tag size={12} className="stroke-[2.5]" />
             </div>
@@ -298,21 +304,22 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
         <div className="w-full block break-words mb-1">
           <ExpandableText
             text={q.question}
-            innerClassName="text-slate-950 dark:text-white text-sm md:text-base cause-semibold mt-2"
+            innerClassName="text-slate-900 dark:text-zinc-50 text-sm sm:text-base font-semibold leading-relaxed tracking-tight mt-1"
           />
         </div>
 
         {designWithAnswer && (designWithAnswer.answerText || designWithAnswer.text) && (
-          <div className="glass-subpane !overflow-visible w-full p-3 sm:p-4 rounded-xl border-l-2 border-l-cyan-500 flex flex-col gap-1.5 mt-1">
+          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-cyan-500/[0.08] via-cyan-500/[0.03] to-transparent dark:from-cyan-500/[0.12] dark:via-cyan-500/[0.04] dark:to-transparent backdrop-blur-xl border border-cyan-500/20 dark:border-cyan-400/20 border-l-[3.5px] border-l-cyan-500 flex flex-col gap-2 mt-2 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-none transition-all">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-400/40 via-white/50 dark:via-white/10 to-transparent" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img 
                   src="/sila2.jpg" 
-                  className="w-6 h-6 rounded-full object-cover border border-cyan-500/30" 
+                  className="w-7 h-7 rounded-full object-cover border border-cyan-500/40 shadow-sm" 
                   alt="Sila" 
                 />
                 <div>
-                  <p className="font-semibold text-xs text-cyan-400 leading-tight">
+                  <p className="font-bold text-xs text-cyan-600 dark:text-cyan-400 leading-tight">
                     Sila
                   </p>
                   <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
@@ -338,23 +345,24 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
             <ExpandableText
               text={designWithAnswer.answerText || (designWithAnswer.text && designWithAnswer.text.includes('\nA: ') ? designWithAnswer.text.split('\nA: ')[1] : designWithAnswer.text)}
               className="pl-2 sm:pl-7"
-              innerClassName="text-slate-800 dark:text-zinc-200 text-xs sm:text-sm mali-regular"
+              innerClassName="text-slate-800 dark:text-zinc-100 text-xs sm:text-sm mali-medium leading-relaxed"
             />
           </div>
         )}
 
         {/* Live Typing State */}
         {!designWithAnswer && typingState && typingState.questionId === q.id && typingState.isTyping && (
-          <div className="glass-subpane w-full p-3 sm:p-4 rounded-xl border-l-2 border-l-amber-500 bg-amber-500/5 flex flex-col gap-1.5 mt-1 transition-all duration-300">
+          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.03] to-transparent dark:from-amber-500/[0.12] dark:via-amber-500/[0.04] dark:to-transparent backdrop-blur-xl border border-amber-500/20 dark:border-amber-400/20 border-l-[3.5px] border-l-amber-500 flex flex-col gap-2 mt-2 shadow-sm transition-all duration-300">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-amber-400/40 via-white/50 dark:via-white/10 to-transparent" />
             <div className="flex items-center gap-2">
               <img 
                 src="/sila2.jpg" 
-                className="w-6 h-6 rounded-full object-cover border border-amber-500/30 animate-[bounce_1.5s_infinite]" 
+                className="w-7 h-7 rounded-full object-cover border border-amber-500/40 animate-[bounce_1.5s_infinite]" 
                 alt="Sila" 
               />
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-xs text-amber-600 dark:text-amber-400 leading-tight">
+                  <p className="font-bold text-xs text-amber-600 dark:text-amber-400 leading-tight">
                     Sila is answering
                   </p>
                   <div className="flex gap-0.5 items-center">
@@ -368,7 +376,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
                 </p>
               </div>
             </div>
-            <div className="pl-2 sm:pl-7 text-slate-800 dark:text-zinc-200 text-xs sm:text-sm mali-regular whitespace-pre-wrap break-words min-h-[1.5rem] relative mt-1">
+            <div className="pl-2 sm:pl-7 text-slate-800 dark:text-zinc-100 text-xs sm:text-sm mali-medium whitespace-pre-wrap break-words min-h-[1.5rem] relative mt-1 leading-relaxed">
               {typingState.text || (
                 <span className="italic text-slate-400 dark:text-slate-500">Sila is thinking...</span>
               )}
@@ -379,7 +387,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-around">
+        <div className="mt-3 pt-3.5 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-around">
           <ReactionButton
             targetId={q.id}
             userReaction={userReaction}
@@ -395,7 +403,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
           
           <button 
             onClick={() => !isLocked && setIsCommentModalOpen(true)}
-            className={`flex items-center gap-2 transition-colors duration-200 group/comment ${
+            className={`flex items-center gap-2 py-1.5 px-3 rounded-xl transition-all duration-200 active:scale-95 hover:bg-slate-100/60 dark:hover:bg-white/5 group/comment ${
               isCommentModalOpen
                 ? "text-cyan-500" 
                 : "text-slate-600 hover:text-cyan-500 dark:text-slate-400 dark:hover:text-cyan-400"
@@ -410,14 +418,14 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
 
           <button 
             onClick={handleShare}
-            className="flex items-center gap-2 text-slate-600 hover:text-cyan-500 dark:text-slate-400 dark:hover:text-cyan-400 transition-colors group/share"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-xl text-slate-600 hover:text-cyan-500 dark:text-slate-400 dark:hover:text-cyan-400 hover:bg-slate-100/60 dark:hover:bg-white/5 transition-all active:scale-95 group/share"
+            title="Share question"
           >
             <Send2 size={18} />
-            <span className="text-sm md:text-base font-semibold"></span>
           </button>
 
-          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-            <img src="https://img.icons8.com/ios-glyphs/50/visible.png" alt="Views" className="w-5 h-5 opacity-50 dark:invert" />
+          <div className="flex items-center gap-1.5 py-1.5 px-3 text-slate-500 dark:text-slate-400">
+            <Eye size={17} className="opacity-70 text-slate-500 dark:text-slate-400" />
             <span className="text-sm font-semibold">{q.views_count || 0}</span>
           </div>
         </div>
