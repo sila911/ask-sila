@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { CloseCircle, Check, Trash } from "iconsax-react";
 import { Telegram } from "developer-icons";
 
@@ -12,6 +12,8 @@ export default function NotifySheetModal({
   onShowToast,
 }) {
   const [handleInput, setHandleInput] = useState("");
+  const dragControls = useDragControls();
+  const touchStartY = useRef(null);
 
   // Sync initial handle when modal opens (NO autofocus)
   useEffect(() => {
@@ -35,6 +37,24 @@ export default function NotifySheetModal({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
+
+  const handleTouchStart = (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") return;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    if (deltaY > 70) {
+      touchStartY.current = null;
+      onClose();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartY.current = null;
+  };
 
   if (typeof document === "undefined") return null;
 
@@ -130,30 +150,55 @@ export default function NotifySheetModal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
-          {/* Backdrop */}
+          {/* Backdrop - simple dark, no blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/50 dark:bg-black/60"
           />
 
-          {/* Sheet Modal Card */}
+          {/* Sheet Modal Card with Swipe / Drag Down to Close */}
           <motion.div
             initial={{ y: "100%", opacity: 0.5 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
+            drag="y"
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.05, bottom: 0.8 }}
+            onDragEnd={(_e, info) => {
+              if (info.offset.y > 70 || info.velocity.y > 250) {
+                onClose();
+              }
+            }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             className="glass-shell relative w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl z-10"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top drag handle indicator */}
-            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-4" />
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              style={{ touchAction: "none" }}
+              className="w-full flex items-center justify-center pt-1 pb-3 cursor-grab active:cursor-grabbing select-none"
+              title="Drag down to close"
+            >
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-2" />
+            </div>
 
             {/* Header with Telegram Icon */}
-            <div className="flex items-center gap-3 mb-5">
-              <Telegram size={38} className="shrink-0" />
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              style={{ touchAction: "none" }}
+              className="flex items-center gap-3 mb-5 cursor-grab active:cursor-grabbing select-none"
+            >
+              <Telegram size={38} className="shrink-0 pointer-events-none" />
               <div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
                   Telegram Notification
