@@ -183,6 +183,28 @@ export async function forgotPassword(req, res) {
   }
 }
 
+export async function verifyResetOtp(req, res) {
+  try {
+    const { code, token } = req.body;
+    if (!code || !token) {
+      return res.status(400).json({ ok: false, message: "Verification code and challenge token are required." });
+    }
+
+    const verification = verifyOtpChallenge(String(code).trim(), token);
+    if (!verification.valid) {
+      return res.status(400).json({ ok: false, message: verification.message });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Reset code verified successfully.",
+    });
+  } catch (error) {
+    console.error("Verify reset OTP error:", error);
+    return res.status(500).json({ ok: false, message: "Verification failed." });
+  }
+}
+
 export async function resetPassword(req, res) {
   try {
     const { code, token, newPassword } = req.body;

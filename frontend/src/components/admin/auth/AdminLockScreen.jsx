@@ -2,7 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeSlash, ArrowLeft2 } from "iconsax-react";
 import { sounds } from "../../../utils/soundEffects";
-import { requestPasswordReset, submitPasswordReset } from "../../../lib/adminAccess";
+import {
+  requestPasswordReset,
+  submitPasswordReset,
+  verifyResetOtp,
+} from "../../../lib/adminAccess";
 
 export default function AdminLockScreen({
   handleAdminAuth,
@@ -21,11 +25,12 @@ export default function AdminLockScreen({
   const getStepFromPath = (path) => {
     if (path.endsWith("/2fa") || path.endsWith("/otp")) return "otp";
     if (path.endsWith("/forgot")) return "forgot";
+    if (path.endsWith("/new-password") || path.endsWith("/create-password")) return "new-password";
     if (path.endsWith("/reset")) return "reset";
     return "password";
   };
 
-  // ─── Step Management: 'password' | 'otp' | 'forgot' | 'reset' ─────────────
+  // ─── Step Management: 'password' | 'otp' | 'forgot' | 'reset' | 'new-password'
   const [step, setStep] = useState(() => getStepFromPath(location.pathname));
 
   useEffect(() => {
@@ -43,6 +48,8 @@ export default function AdminLockScreen({
       navigate(`${basePath}/forgot`);
     } else if (nextStep === "reset") {
       navigate(`${basePath}/reset`);
+    } else if (nextStep === "new-password") {
+      navigate(`${basePath}/new-password`);
     } else {
       navigate(basePath);
     }
@@ -54,7 +61,13 @@ export default function AdminLockScreen({
 
   // ─── Forgot / Reset State ─────────────────────────────────────────────────
   const [email, setEmail] = useState("");
-  const [resetCode, setResetCode] = useState("");
+  const [resetOtp, setResetOtp] = useState(["", "", "", "", "", ""]);
+  const [verifiedResetCode, setVerifiedResetCode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("sila_admin_reset_code") || "";
+    }
+    return "";
+  });
   const [newPassword, setNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetToken, setResetToken] = useState(() => {
@@ -64,7 +77,12 @@ export default function AdminLockScreen({
     return "";
   });
 
-  // ─── 2FA OTP State ────────────────────────────────────────────────────────
+  const resetOtpInputRefs = useRef([]);
+  const [resetTimeLeft, setResetTimeLeft] = useState(60);
+  const [resetCooldown, setResetCooldown] = useState(30);
+  const [resetCanResend, setResetCanResend] = useState(false);
+
+  // ─── 2FA Login OTP State ──────────────────────────────────────────────────
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [token, setToken] = useState("");
   const [timeLeft, setTimeLeft] = useState(60); // 60s in seconds
@@ -79,7 +97,53 @@ export default function AdminLockScreen({
 
   const otpInputRefs = useRef([]);
 
-  // ─── Timer & Cooldown Handlers ────────────────────────────────────────────
+  // ─── Reset OTP Timer & Cooldown Handlers ──────────────────────────────────
+  useEffect(() => {
+    let timer;
+    if (step === "reset" && resetTimeLeft > 0) {
+      timer = setInterval(() => {
+        setResetTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setError("");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, resetTimeLeft]);
+
+  useEffect(() => {
+    let cdTimer;
+    if (step === "reset" && resetCooldown > 0) {
+      setResetCanResend(false);
+      cdTimer = setInterval(() => {
+        setResetCooldown((prev) => {
+          if (prev <= 1) {
+            setResetCanResend(true);
+            clearInterval(cdTimer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (resetCooldown === 0) {
+      setResetCanResend(true);
+    }
+    return () => clearInterval(cdTimer);
+  }, [step, resetCooldown]);
+
+  useEffect(() => {
+    if (step === "reset") {
+      setTimeout(() => {
+        resetOtpInputRefs.current[0]?.focus();
+      }, 150);
+    }
+  }, [step]);
+
+  // ─── 2FA OTP Timer & Cooldown Handlers ────────────────────────────────────
   useEffect(() => {
     let timer;
     if (step === "otp" && timeLeft > 0) {
@@ -323,6 +387,9 @@ export default function AdminLockScreen({
           sessionStorage.setItem("sila_admin_reset_token", res.token);
         }
       }
+      setResetTimeLeft(60);
+      setResetCooldown(30);
+      setResetOtp(["", "", "", "", "", ""]);
       const msg = res.message || "6-digit reset code sent to your Telegram!";
       setInfoMessage(msg);
       showAdminToast?.("Code Dispatched", msg, "info");
@@ -339,19 +406,65 @@ export default function AdminLockScreen({
     }
   };
 
-  // ─── Step 4: Reset Password (Input Code & New Password) ───────────────────
-  const handleReset = async (e) => {
-    e?.preventDefault?.();
-    if (!resetCode || resetCode.length < 6) {
-      const msg = "Please enter the complete 6-digit reset code.";
+  // ─── Step 4: Reset OTP Handling (6 Individual Boxes) ───────────────────────
+  const handleResetOtpChange = (index, value) => {
+    if (resetTimeLeft <= 0) return;
+    const cleanVal = value.replace(/[^0-9]/g, "");
+    if (!cleanVal && value !== "") return;
+
+    sounds.playClick();
+    const newOtp = [...resetOtp];
+    newOtp[index] = cleanVal ? cleanVal.slice(-1) : "";
+    setResetOtp(newOtp);
+    if (error) setError("");
+
+    if (cleanVal && index < 5) {
+      resetOtpInputRefs.current[index + 1]?.focus();
+    }
+
+    if (cleanVal && newOtp.every((d) => d !== "")) {
+      const fullCode = newOtp.join("");
+      triggerVerifyResetOtp(fullCode);
+    }
+  };
+
+  const handleResetOtpKeyDown = (index, e) => {
+    if (resetTimeLeft <= 0) return;
+    if (e.key === "Backspace") {
+      if (resetOtp[index] === "" && index > 0) {
+        resetOtpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      resetOtpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      resetOtpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleResetOtpPaste = (e) => {
+    if (resetTimeLeft <= 0) return;
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").trim().replace(/[^0-9]/g, "");
+    if (pasted.length >= 6) {
+      const digits = pasted.slice(0, 6).split("");
+      setResetOtp(digits);
+      resetOtpInputRefs.current[5]?.focus();
+      sounds.playClick();
+      triggerVerifyResetOtp(digits.join(""));
+    }
+  };
+
+  const triggerVerifyResetOtp = async (fullCode) => {
+    if (!fullCode || fullCode.length !== 6) {
+      const msg = "Please enter the complete 6-digit code.";
       setError(msg);
       showAdminToast?.("Code Incomplete", msg, "error");
       return;
     }
-    if (!newPassword || newPassword.length < 4) {
-      const msg = "New password must be at least 4 characters.";
+    if (resetTimeLeft <= 0) {
+      const msg = "Verification code has expired. Please request a new code.";
       setError(msg);
-      showAdminToast?.("Invalid Password", msg, "error");
+      showAdminToast?.("Code Expired", msg, "error");
       return;
     }
 
@@ -367,27 +480,112 @@ export default function AdminLockScreen({
     setIsLoading(true);
     setError("");
     setInfoMessage("");
+
     try {
-      const res = await submitPasswordReset(resetCode, newPassword, activeToken);
+      const res = await verifyResetOtp(fullCode, activeToken);
+      if (res.ok) {
+        setVerifiedResetCode(fullCode);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("sila_admin_reset_code", fullCode);
+        }
+        sounds.playSuccess();
+        showAdminToast?.("Code Verified", "Now create your new admin password.", "success");
+        changeStep("new-password");
+      } else {
+        const msg = res.message || "Invalid or expired verification code.";
+        setError(msg);
+        showAdminToast?.("Verification Failed", msg, "error");
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 600);
+      }
+    } catch (err) {
+      const msg = err.message || "Invalid or expired verification code.";
+      setError(msg);
+      showAdminToast?.("Verification Failed", msg, "error");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 600);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendResetCode = async () => {
+    if ((resetTimeLeft > 0 && !resetCanResend) || isLoading) return;
+    setIsLoading(true);
+    setError("");
+    setInfoMessage("");
+
+    try {
+      const res = await requestPasswordReset(email || "semsila.dev@gmail.com");
+      if (res.token) {
+        setResetToken(res.token);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("sila_admin_reset_token", res.token);
+        }
+      }
+      setResetTimeLeft(60);
+      setResetCooldown(30);
+      setResetOtp(["", "", "", "", "", ""]);
+      setInfoMessage("A fresh 6-digit reset code has been sent to your Telegram!");
+      showAdminToast?.("Code Dispatched", "A fresh 6-digit code has been sent to Telegram!", "info");
+      sounds.playClick();
+      resetOtpInputRefs.current[0]?.focus();
+    } catch (err) {
+      const msg = err.message || "Failed to resend code.";
+      setError(msg);
+      showAdminToast?.("Resend Failed", msg, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ─── Step 5: Set New Password ─────────────────────────────────────────────
+  const handleSetNewPassword = async (e) => {
+    e?.preventDefault?.();
+    if (!newPassword || newPassword.length < 4) {
+      const msg = "New password must be at least 4 characters.";
+      setError(msg);
+      showAdminToast?.("Invalid Password", msg, "error");
+      return;
+    }
+
+    const activeToken = resetToken || (typeof window !== "undefined" && sessionStorage.getItem("sila_admin_reset_token"));
+    const activeCode = verifiedResetCode || (typeof window !== "undefined" && sessionStorage.getItem("sila_admin_reset_code"));
+
+    if (!activeToken || !activeCode) {
+      const msg = "Verification expired. Please verify your OTP code again.";
+      setError(msg);
+      showAdminToast?.("Session Expired", msg, "error");
+      changeStep("reset");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    setInfoMessage("");
+
+    try {
+      const res = await submitPasswordReset(activeCode, newPassword, activeToken);
       const msg = res.message || "Password updated successfully! Welcome back.";
       showAdminToast?.("Access Restored", msg, "success");
       sounds.playSuccess();
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("sila_admin_reset_token");
+        sessionStorage.removeItem("sila_admin_reset_code");
       }
       setPassword("");
-      setResetCode("");
+      setResetOtp(["", "", "", "", "", ""]);
+      setVerifiedResetCode("");
       setNewPassword("");
       setError("");
       setInfoMessage("");
 
-      // Auto-login directly into Admin Dashboard (User Option A1)
       if (setIsAdminUnlocked) {
         setIsAdminUnlocked(true);
       }
       navigate(basePath);
     } catch (err) {
-      const msg = err.message || "Failed to reset password.";
+      const msg = err.message || "Failed to set new password.";
       setError(msg);
       showAdminToast?.("Reset Failed", msg, "error");
       setIsShaking(true);
@@ -414,7 +612,12 @@ export default function AdminLockScreen({
         <button
           type="button"
           onClick={() => {
-            if (step === "reset") {
+            if (step === "new-password") {
+              changeStep("reset");
+              setError("");
+              setInfoMessage("");
+              sounds.playClick();
+            } else if (step === "reset") {
               changeStep("forgot");
               setError("");
               setInfoMessage("");
@@ -430,7 +633,15 @@ export default function AdminLockScreen({
           }}
           className="absolute left-5 top-5 w-9 h-9 sm:w-10 sm:h-10 rounded-full theme-toggle-btn flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-all active:scale-90 shadow-sm z-10"
           aria-label="Back"
-          title={step === "reset" ? "Back to Email" : step === "otp" || step === "forgot" ? "Back to Password" : "Back to Home"}
+          title={
+            step === "new-password"
+              ? "Back to Verification Code"
+              : step === "reset"
+              ? "Back to Email"
+              : step === "otp" || step === "forgot"
+              ? "Back to Password"
+              : "Back to Home"
+          }
         >
           <ArrowLeft2 size={18} />
         </button>
@@ -607,7 +818,7 @@ export default function AdminLockScreen({
           </>
         )}
 
-        {/* ─── Step: Reset Password (Enter Code & New Password) ─── */}
+        {/* ─── Step: Reset OTP (6 Individual Blocks - Identical to 2FA Login OTP) ─── */}
         {step === "reset" && (
           <>
             <div className="flex flex-col items-center justify-center text-center pt-2 mb-5">
@@ -627,12 +838,17 @@ export default function AdminLockScreen({
               </p>
             </div>
 
-            {infoMessage && (
+            {resetTimeLeft <= 0 ? (
+              <div className="mb-4 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 text-xs flex items-center justify-center gap-2 animate-in fade-in">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-ping" />
+                <span>Verification code has expired. Tap resend below.</span>
+              </div>
+            ) : infoMessage ? (
               <div className="mb-4 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs flex items-center justify-center gap-2 animate-in fade-in">
                 <span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0 animate-ping" />
                 <span>{infoMessage}</span>
               </div>
-            )}
+            ) : null}
 
             {error && (
               <p className="text-xs text-rose-500 font-medium px-1 mb-4 text-center animate-in fade-in">
@@ -640,23 +856,125 @@ export default function AdminLockScreen({
               </p>
             )}
 
-            <form onSubmit={handleReset} className="space-y-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={resetCode}
-                  onChange={(e) => {
-                    setResetCode(e.target.value.replace(/[^0-9]/g, ""));
-                    if (error) setError("");
-                  }}
-                  placeholder="000000"
-                  className="w-full h-12 px-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center font-mono font-bold tracking-[0.35em] text-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-                  autoFocus
-                  required
-                />
+            <form
+              onSubmit={(e) => {
+                e?.preventDefault?.();
+                triggerVerifyResetOtp(resetOtp.join(""));
+              }}
+              className="space-y-5"
+            >
+              {/* 6 Individual Digit Blocks: One block for only one number */}
+              <div className="flex justify-between gap-1.5 sm:gap-2">
+                {resetOtp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => (resetOtpInputRefs.current[idx] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    disabled={resetTimeLeft <= 0 || isLoading}
+                    onChange={(e) => handleResetOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleResetOtpKeyDown(idx, e)}
+                    onPaste={handleResetOtpPaste}
+                    autoComplete="one-time-code"
+                    className={`w-11 h-13 sm:w-13 sm:h-15 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl sm:rounded-2xl border transition-all duration-200 shadow-inner ${
+                      resetTimeLeft <= 0
+                        ? "opacity-35 cursor-not-allowed bg-slate-100/40 dark:bg-white/5 border-slate-200 dark:border-white/5 pointer-events-none"
+                        : digit
+                        ? "bg-cyan-500/10 border-cyan-500/60 text-cyan-500 dark:text-cyan-400 ring-2 ring-cyan-500/20"
+                        : "bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-800 dark:text-zinc-100"
+                    } focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500`}
+                  />
+                ))}
               </div>
 
+              {resetTimeLeft > 0 && (
+                <div className="flex items-center justify-center text-xs px-1">
+                  <span
+                    className={`font-mono text-sm tracking-widest font-bold ${
+                      resetTimeLeft < 20 ? "text-rose-500 animate-pulse" : "text-cyan-600/80 dark:text-cyan-400/80"
+                    }`}
+                  >
+                    {formatTimer(resetTimeLeft)}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading || resetOtp.some((d) => d === "") || resetTimeLeft <= 0}
+                className="w-full h-12 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-base shadow-lg shadow-cyan-600/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Verifying Code...
+                  </>
+                ) : (
+                  "Verify Code"
+                )}
+              </button>
+
+              <div className="flex items-center justify-between pt-1 px-1">
+                <button
+                  type="button"
+                  onClick={handleResendResetCode}
+                  disabled={isLoading || (resetTimeLeft > 0 && !resetCanResend)}
+                  className={`text-xs font-medium cursor-pointer transition-colors ${
+                    resetTimeLeft > 0 && !resetCanResend
+                      ? "text-slate-400 dark:text-zinc-500 cursor-not-allowed"
+                      : "text-cyan-600 dark:text-cyan-400 hover:underline"
+                  }`}
+                >
+                  {resetCooldown > 0 && resetTimeLeft > 0
+                    ? `Resend in ${resetCooldown}s`
+                    : "Resend Telegram Code"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    changeStep("forgot");
+                    setError("");
+                    setInfoMessage("");
+                  }}
+                  className="text-xs text-[color:var(--app-muted)] hover:text-slate-200 cursor-pointer font-medium"
+                >
+                  Change Email
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* ─── Step: Create New Password (Only Shown AFTER Correct OTP!) ─── */}
+        {step === "new-password" && (
+          <>
+            <div className="flex flex-col items-center justify-center text-center pt-2 mb-5">
+              <div className="relative mb-3 flex items-center justify-center">
+                <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl scale-125 pointer-events-none" />
+                <img
+                  src="https://img.icons8.com/3d-fluency/188/key.png"
+                  alt="Create New Password"
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain relative drop-shadow-2xl hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold font-['Racing_Sans_One',sans-serif] tracking-wide text-[color:var(--app-text)]">
+                CREATE NEW PASSWORD
+              </h2>
+              <p className="text-xs sm:text-sm text-[color:var(--app-muted)] mt-1 max-w-xs">
+                Set a new password for your admin account
+              </p>
+            </div>
+
+            {error && (
+              <p className="text-xs text-rose-500 font-medium px-1 mb-4 text-center animate-in fade-in">
+                {error}
+              </p>
+            )}
+
+            <form onSubmit={handleSetNewPassword} className="space-y-4">
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
@@ -665,8 +983,9 @@ export default function AdminLockScreen({
                     setNewPassword(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="Create new admin password..."
+                  placeholder="Enter new admin password..."
                   className="w-full h-12 pl-4 pr-12 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                  autoFocus
                   required
                 />
                 <button
@@ -681,40 +1000,18 @@ export default function AdminLockScreen({
 
               <button
                 type="submit"
-                disabled={isLoading || resetCode.length < 6 || !newPassword}
+                disabled={isLoading || !newPassword || newPassword.length < 4}
                 className="w-full h-12 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-base shadow-lg shadow-cyan-600/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Resetting & Unlocking...
+                    Saving Password...
                   </>
                 ) : (
-                  "Reset & Unlock Dashboard"
+                  "Save Password & Unlock"
                 )}
               </button>
-
-              <div className="flex items-center justify-between pt-1 px-1">
-                <button
-                  type="button"
-                  onClick={handleForgot}
-                  disabled={isLoading}
-                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-medium disabled:opacity-50"
-                >
-                  Resend Telegram Code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    changeStep("forgot");
-                    setError("");
-                    setInfoMessage("");
-                  }}
-                  className="text-xs text-[color:var(--app-muted)] hover:text-slate-200 cursor-pointer font-medium"
-                >
-                  Change Email
-                </button>
-              </div>
             </form>
           </>
         )}

@@ -118,6 +118,29 @@ export async function requestPasswordReset(inputEmail) {
   };
 }
 
+export async function verifyResetOtp(code, token) {
+  const cleanCode = String(code).trim();
+  if (!cleanCode || cleanCode.length !== 6) {
+    throw new Error("Please enter the complete 6-digit verification code.");
+  }
+  if (!token) {
+    throw new Error("Reset session expired. Please request a new code.");
+  }
+
+  const res = await apiRequest("/auth/verify-reset-otp", {
+    method: "POST",
+    body: {
+      code: cleanCode,
+      token,
+    },
+  });
+
+  return {
+    ok: true,
+    message: res.message || "Reset code verified successfully.",
+  };
+}
+
 export async function submitPasswordReset(code, newPassword, token) {
   const cleanCode = String(code).trim();
   if (!cleanCode || cleanCode.length < 6) {
