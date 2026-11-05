@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Check } from 'iconsax-react';
+import { Facebook, Messenger, Instagram, Telegram, Twitter } from 'developer-icons';
 import { sounds } from '../utils/soundEffects';
 
 export default function ShareModal({ isOpen, onClose, url, questionText }) {
@@ -50,30 +51,35 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
 
   const shareLinks = [
     {
+      name: 'Telegram',
+      icon: <Telegram className="w-8 h-8" />,
+      href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(questionText)}`,
+    },
+    {
       name: 'Facebook',
-      icon: <img src="https://img.icons8.com/3d-fluency/94/facebook-logo.png" alt="Facebook" className="w-8 h-8 object-contain" />,
+      icon: <Facebook className="w-8 h-8" />,
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
     },
     {
       name: 'Messenger',
-      icon: <img src="https://img.icons8.com/fluency/96/facebook-messenger--v2.png" alt="Messenger" className="w-8 h-8 object-contain" />,
+      icon: <Messenger className="w-8 h-8" />,
       href: `fb-messenger://share/?link=${encodeURIComponent(url)}`,
     },
     {
       name: 'Instagram',
-      icon: <img src="https://img.icons8.com/3d-fluency/94/instagram-logo.png" alt="Instagram" className="w-8 h-8 object-contain" />,
+      icon: <Instagram className="w-8 h-8" />,
       href: `https://instagram.com/`, 
     },
     {
-      name: 'Telegram',
-      icon: <img src="https://img.icons8.com/3d-fluency/94/telegram.png" alt="Telegram" className="w-8 h-8 object-contain" />,
-      href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(questionText)}`,
-    }
+      name: 'Twitter',
+      icon: <Twitter className="w-8 h-8" />,
+      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(questionText)}`,
+    },
   ];
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/50 transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       onClick={onClose}
     >
       <div 
@@ -86,7 +92,7 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
         
         <h2 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Share Question</h2>
         
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 mb-4">
           {shareLinks.map((link) => (
             <a
               key={link.name}

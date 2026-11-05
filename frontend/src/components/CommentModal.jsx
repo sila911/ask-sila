@@ -55,7 +55,7 @@ export default function CommentModal({ isOpen, onClose, comments, onAddComment, 
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-[100] overflow-x-hidden flex items-end justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-[100] overflow-x-hidden flex items-end justify-center bg-black/50 transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       onClick={onClose}
     >
       <div 

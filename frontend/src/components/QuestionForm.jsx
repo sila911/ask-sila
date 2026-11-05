@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Shuffle, Send2, Refresh, Notification, CloseCircle, Warning2 } from 'iconsax-react'
+import { Shuffle, Send2, Refresh, CloseCircle, Warning2 } from 'iconsax-react'
+import { Telegram } from 'developer-icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import { checkRateLimit, recordSubmission, validateQuestionText } from '../lib/spamFilter'
 import Toast from './ui/Toast'
@@ -310,12 +311,12 @@ export default function QuestionForm({ onSuccess, onSubmitQuestion }) {
             onClick={() => setShowNotifyModal(true)}
             className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/10 rounded-full px-3.5 py-1.5 transition-all duration-200 shadow-sm cursor-pointer font-medium active:scale-95"
           >
-            <Notification size={14} className="text-cyan-600 dark:text-cyan-400" />
+            <Telegram size={14} className="shrink-0" />
             <span>Notify me</span>
           </button>
         ) : (
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 rounded-full pl-3 pr-1.5 py-1 text-xs shadow-sm">
-            <Notification size={13} variant="Bold" className="text-cyan-500" />
+            <Telegram size={13} className="shrink-0" />
             <button
               type="button"
               onClick={() => setShowNotifyModal(true)}

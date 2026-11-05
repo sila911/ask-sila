@@ -51,7 +51,7 @@ export default function BuyMeCoffeeModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className={`fixed inset-0 z-[150] overflow-x-hidden flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-all duration-500 ${
+      className={`fixed inset-0 z-[150] overflow-x-hidden flex items-center justify-center p-4 bg-black/50 transition-all duration-500 ${
         isVisible ? "opacity-100 visible" : "opacity-0 invisible"
       }`}
       onClick={onClose}

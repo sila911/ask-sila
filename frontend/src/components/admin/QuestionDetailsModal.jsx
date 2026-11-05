@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Telegram } from "developer-icons";
 import {
   ArrowLeft2,
   Eye,
@@ -259,7 +260,7 @@ export default function QuestionDetailsModal({
                 className="inline-flex items-center justify-between px-4 py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 text-xs font-bold transition-all group"
               >
                 <div className="flex items-center gap-2">
-                  <Notification size={16} />
+                  <Telegram size={16} className="shrink-0" />
                   <span>{question.notify_handle}</span>
                 </div>
                 <ExportSquare size={14} className="group-hover:translate-x-0.5 transition-transform" />

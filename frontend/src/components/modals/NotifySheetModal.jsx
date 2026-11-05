@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CloseCircle, Check, Trash } from "iconsax-react";
+import { Telegram } from "developer-icons";
 
 export default function NotifySheetModal({
   isOpen,
@@ -135,7 +136,7 @@ export default function NotifySheetModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 dark:bg-black/60"
           />
 
           {/* Sheet Modal Card */}
@@ -150,13 +151,9 @@ export default function NotifySheetModal({
             {/* Top drag handle indicator */}
             <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-4" />
 
-            {/* Header with 3D Telegram Icon */}
+            {/* Header with Telegram Icon */}
             <div className="flex items-center gap-3 mb-5">
-              <img
-                src="https://img.icons8.com/3d-fluency/94/telegram.png"
-                alt="Telegram"
-                className="w-10 h-10 object-contain shrink-0"
-              />
+              <Telegram size={38} className="shrink-0" />
               <div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
                   Telegram Notification
