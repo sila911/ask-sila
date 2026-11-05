@@ -137,23 +137,23 @@
   .dark {
     --app-text: #e5edf5;
     --app-muted: #aab8c5;
-    --card-bg: rgba(10, 22, 34, 0.5);
-    --card-border: rgba(167, 192, 224, 0.32);
-    --input-bg: rgba(9, 19, 31, 0.56);
-    --input-border: rgba(88, 116, 141, 0.5);
-    --icon-chip: rgba(18, 34, 49, 0.6);
-    --icon-chip-hover: rgba(27, 49, 69, 0.78);
+    --card-bg: rgba(30, 41, 59, 0.35);
+    --card-border: rgba(255, 255, 255, 0.12);
+    --input-bg: rgba(30, 41, 59, 0.35);
+    --input-border: rgba(255, 255, 255, 0.12);
+    --icon-chip: rgba(255, 255, 255, 0.08);
+    --icon-chip-hover: rgba(255, 255, 255, 0.15);
     --bg-base: #172a47;
     --bg-grad-1: #1a315b;
     --bg-grad-2: #3a58d4;
     --bg-grad-3: #437d5e;
     --bg-grid: rgba(148, 168, 204, 0.1);
     --bg-grid-strong: rgba(182, 204, 232, 0.15);
-    --glass-glow: rgba(111, 149, 255, 0.2);
-    --glass-shadow: 0 34px 88px rgba(1, 6, 18, 0.72);
-    --glass-edge-light: rgba(206, 228, 255, 0.36);
-    --glass-edge-dark: rgba(5, 9, 21, 0.72);
-    --glass-inner-shadow: inset 0 1px 0 rgba(216, 236, 255, 0.18), inset 0 -22px 45px rgba(3, 9, 25, 0.24);
+    --glass-glow: rgba(111, 149, 255, 0.18);
+    --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    --glass-edge-light: rgba(255, 255, 255, 0.15);
+    --glass-edge-dark: rgba(5, 9, 21, 0.4);
+    --glass-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -12px 30px rgba(3, 9, 25, 0.15);
   }
 
   html, body {

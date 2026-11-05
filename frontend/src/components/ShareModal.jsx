@@ -9,6 +9,7 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
   const [copied, setCopied] = useState(false);
   const dragControls = useDragControls();
   const touchStartY = useRef(null);
+  const lastTapRef = useRef(0);
 
   // Close on Escape key and prevent body scroll when open
   useEffect(() => {
@@ -25,6 +26,21 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
     };
   }, [isOpen, onClose]);
 
+  const handleDoubleTap = () => {
+    sounds.playClick();
+    onClose();
+  };
+
+  const handleTouchEndHeader = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      handleDoubleTap();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(url).then(() => {
       sounds.playPop(580);
@@ -40,7 +56,7 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
   const handleTouchMove = (e) => {
     if (touchStartY.current === null) return;
     const deltaY = e.touches[0].clientY - touchStartY.current;
-    if (deltaY > 70) {
+    if (deltaY > 60) {
       touchStartY.current = null;
       onClose();
     }
@@ -118,16 +134,21 @@ export default function ShareModal({ isOpen, onClose, url, questionText }) {
             {/* Top Drag Handle Indicator */}
             <div 
               onPointerDown={(e) => dragControls.start(e)}
+              onDoubleClick={handleDoubleTap}
+              onTouchEnd={handleTouchEndHeader}
               style={{ touchAction: "none" }}
               className="w-full flex flex-col items-center justify-center pb-2 shrink-0 cursor-grab active:cursor-grabbing select-none"
-              title="Drag down to close"
+              title="Double-click or drag down to close"
             >
-              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-3" />
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-3 pointer-events-none" />
             </div>
             
             <h2 
               onPointerDown={(e) => dragControls.start(e)}
+              onDoubleClick={handleDoubleTap}
+              onTouchEnd={handleTouchEndHeader}
               className="text-base font-bold mb-4 text-slate-800 dark:text-white select-none cursor-grab active:cursor-grabbing"
+              title="Double-click or drag down to close"
             >
               Share Question
             </h2>

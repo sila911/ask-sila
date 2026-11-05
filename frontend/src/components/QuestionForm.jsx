@@ -266,7 +266,7 @@ export default function QuestionForm({ onSuccess, onSubmitQuestion }) {
           onChange={handleTextChange}
           rows="5"
           placeholder={placeholder}
-          className="w-full rounded-3xl p-4 px-14 bg-[color:var(--input-bg)] border border-[color:var(--input-border)] focus:outline-none resize-none text-[color:var(--app-text)] placeholder-[color:var(--app-muted)] focus:ring-2 focus:ring-cyan-300/40 dark:focus:ring-cyan-500/35 focus:border-cyan-400 dark:focus:border-cyan-500 focus:shadow-[0_0_15px_rgba(34,211,238,0.25)] transition-all cause-medium"
+          className="w-full rounded-3xl p-4 px-14 bg-white/70 dark:bg-slate-800/35 hover:dark:bg-slate-800/45 focus:dark:bg-slate-800/50 backdrop-blur-2xl border border-white/80 dark:border-white/25 hover:dark:border-white/15 focus:outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400/60 focus:ring-2 focus:ring-cyan-300/40 dark:focus:ring-cyan-500/30 focus:border-cyan-400 dark:focus:border-cyan-400/50 focus:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all cause-medium"
         />
 
         {/* Shuffle Random Prompt Button */}
@@ -274,8 +274,8 @@ export default function QuestionForm({ onSuccess, onSubmitQuestion }) {
           type="button"
           onClick={handleShuffle}
           className="absolute bottom-3 left-3 w-10 h-10 flex items-center justify-center rounded-full
-             bg-white/90 dark:bg-slate-800/95 text-slate-700 dark:text-slate-100 border border-slate-300/85 dark:border-slate-500/70
-             hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
+             bg-white/85 dark:bg-white/10 text-slate-700 dark:text-slate-100 border border-slate-200/80 dark:border-white/15
+             hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm cursor-pointer backdrop-blur-md"
           title="Random Question Inspiration"
         >
           <motion.div
@@ -292,8 +292,8 @@ export default function QuestionForm({ onSuccess, onSubmitQuestion }) {
           type="submit"
           disabled={isLoading || !question.trim()}
           className="absolute bottom-3 right-3 w-10 h-10 flex items-center justify-center rounded-full
-             bg-cyan-700 dark:bg-cyan-500 text-white dark:text-slate-950
-             hover:scale-110 active:scale-90 transition-all duration-200 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+             bg-cyan-500 hover:bg-cyan-400 text-white
+             hover:scale-110 active:scale-90 transition-all duration-200 shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
         >
           {isLoading ? (
             <Refresh size={16} className="animate-spin" />

@@ -20,6 +20,7 @@ export default function CommentModal({
   const dragControls = useDragControls();
   const commentsContainerRef = useRef(null);
   const touchStartY = useRef(null);
+  const lastTapRef = useRef(0);
 
   // Close on Escape key and prevent body scroll when open
   useEffect(() => {
@@ -36,6 +37,21 @@ export default function CommentModal({
     };
   }, [isOpen, onClose]);
 
+  const handleDoubleTap = () => {
+    sounds.playClick();
+    onClose();
+  };
+
+  const handleTouchEndHeader = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      handleDoubleTap();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
   const submitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -47,7 +63,7 @@ export default function CommentModal({
   };
 
   // Touch gesture handling inside comments list:
-  // When scrolled to the top (scrollTop <= 2), pulling down > 65px automatically closes the sheet!
+  // When scrolled to the top (scrollTop <= 2), pulling down > 60px automatically closes the sheet!
   const handleScrollTouchStart = (e) => {
     touchStartY.current = e.touches[0].clientY;
   };
@@ -58,7 +74,7 @@ export default function CommentModal({
     const deltaY = currentY - touchStartY.current;
     const container = commentsContainerRef.current;
 
-    if (container && container.scrollTop <= 2 && deltaY > 65) {
+    if (container && container.scrollTop <= 2 && deltaY > 60) {
       touchStartY.current = null;
       onClose();
     }
@@ -110,12 +126,14 @@ export default function CommentModal({
             {/* Top Drag Handle & Header */}
             <div
               onPointerDown={(e) => dragControls.start(e)}
+              onDoubleClick={handleDoubleTap}
+              onTouchEnd={handleTouchEndHeader}
               style={{ touchAction: "none" }}
               className="w-full flex flex-col items-center justify-center pt-3 pb-2 shrink-0 cursor-grab active:cursor-grabbing select-none"
-              title="Drag down to close"
+              title="Double-click or drag down to close"
             >
-              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-3" />
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-3 pointer-events-none" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white pointer-events-none">
                 {sortedComments.length} {sortedComments.length === 1 ? 'comment' : 'comments'}
               </h2>
             </div>

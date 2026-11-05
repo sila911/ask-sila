@@ -251,10 +251,10 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
     <div
       ref={cardRef}
       key={q.id}
-      className={`relative w-full h-auto flex flex-col gap-3.5 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.25rem] overflow-hidden bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.12)] dark:hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.5)] hover:border-cyan-500/30 dark:hover:border-cyan-400/25 transition-all duration-300 text-slate-900 dark:text-white ${isSingleView ? 'shadow-2xl' : ''}`}
+      className={`relative w-full h-auto flex flex-col gap-3.5 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.25rem] overflow-hidden bg-white/70 dark:bg-slate-800/35 hover:dark:bg-slate-800/45 backdrop-blur-2xl border border-white/80 dark:border-white/25 hover:border-cyan-500/30 dark:hover:border-white/12 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.12)] dark:hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.28)] transition-all duration-300 text-slate-900 dark:text-white ${isSingleView ? 'shadow-2xl' : ''}`}
     >
       {/* Specular top rim highlight for iOS Liquid Glass */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 dark:via-cyan-400/30 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
 
       {isLocked && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-xl">
@@ -279,7 +279,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
             className={`flex items-center gap-3 ${!isSingleView ? "hover:opacity-80 transition-opacity cursor-pointer" : "cursor-default"}`}
             title={!isSingleView ? "View detail page" : ""}
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center shrink-0 overflow-hidden text-white shadow-md border border-white/80 dark:border-white/10">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-white/15 dark:to-white/5 flex items-center justify-center shrink-0 overflow-hidden text-white shadow-md border border-white/80 dark:border-white/15">
               <span className="text-lg">👻</span>
             </div>
             <div>
@@ -294,7 +294,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
                 <span>Pinned</span>
               </span>
             )}
-            <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 text-cyan-700 dark:text-cyan-400 whitespace-nowrap font-bold shadow-sm backdrop-blur-md">
+            <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 dark:border-cyan-400/25 text-cyan-700 dark:text-cyan-300 whitespace-nowrap font-bold shadow-sm backdrop-blur-md">
               <span>{tags[tagIndex]}</span>
               <Tag size={12} className="stroke-[2.5]" />
             </div>
@@ -309,8 +309,8 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
         </div>
 
         {designWithAnswer && (designWithAnswer.answerText || designWithAnswer.text) && (
-          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-cyan-500/[0.08] via-cyan-500/[0.03] to-transparent dark:from-cyan-500/[0.12] dark:via-cyan-500/[0.04] dark:to-transparent backdrop-blur-xl border border-cyan-500/20 dark:border-cyan-400/20 border-l-[3.5px] border-l-cyan-500 flex flex-col gap-2 mt-2 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-none transition-all">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-400/40 via-white/50 dark:via-white/10 to-transparent" />
+          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-cyan-500/[0.08] via-cyan-500/[0.03] to-transparent dark:from-cyan-500/[0.09] dark:to-cyan-950/20 backdrop-blur-xl border border-cyan-500/20 dark:border-cyan-400/25 border-l-[3.5px] border-l-cyan-500 flex flex-col gap-2 mt-2 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-400/40 via-white/50 dark:via-white/15 to-transparent" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img 
@@ -352,8 +352,8 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
 
         {/* Live Typing State */}
         {!designWithAnswer && typingState && typingState.questionId === q.id && typingState.isTyping && (
-          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.03] to-transparent dark:from-amber-500/[0.12] dark:via-amber-500/[0.04] dark:to-transparent backdrop-blur-xl border border-amber-500/20 dark:border-amber-400/20 border-l-[3.5px] border-l-amber-500 flex flex-col gap-2 mt-2 shadow-sm transition-all duration-300">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-amber-400/40 via-white/50 dark:via-white/10 to-transparent" />
+          <div className="relative overflow-hidden w-full p-3.5 sm:p-5 rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.03] to-transparent dark:from-amber-500/[0.09] dark:to-amber-950/20 backdrop-blur-xl border border-amber-500/20 dark:border-amber-400/25 border-l-[3.5px] border-l-amber-500 flex flex-col gap-2 mt-2 shadow-sm transition-all duration-300">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-amber-400/40 via-white/50 dark:via-white/15 to-transparent" />
             <div className="flex items-center gap-2">
               <img 
                 src="/sila2.jpg" 
@@ -387,7 +387,7 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
           </div>
         )}
 
-        <div className="mt-3 pt-3.5 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-around">
+        <div className="mt-3 pt-3.5 border-t border-slate-200/60 dark:border-white/[0.08] flex items-center justify-around">
           <ReactionButton
             targetId={q.id}
             userReaction={userReaction}
@@ -403,22 +403,22 @@ export function QuestionCard({ q, designs, comments, onAddComment, likedQuestion
           
           <button 
             onClick={() => !isLocked && setIsCommentModalOpen(true)}
-            className={`flex items-center gap-2 py-1.5 px-3 rounded-xl transition-all duration-200 active:scale-95 hover:bg-slate-100/60 dark:hover:bg-white/5 group/comment ${
+            className={`flex items-center gap-2 py-1.5 px-3 rounded-xl transition-all duration-200 active:scale-95 hover:bg-slate-100/60 dark:hover:bg-white/5 group/comment cursor-pointer ${
               isCommentModalOpen
                 ? "text-cyan-500" 
-                : "text-slate-600 hover:text-cyan-500 dark:text-slate-400 dark:hover:text-cyan-400"
+                : "text-slate-600 hover:text-cyan-500 dark:text-slate-300 dark:hover:text-cyan-400"
             }`}
             title="View comments"
           >
             <Message size={18} className={isCommentModalOpen ? "fill-cyan-500/20" : ""} />
-            <span className={`text-sm md:text-base font-semibold ${isCommentModalOpen ? "text-cyan-500" : "text-slate-700 dark:text-slate-300"}`}>
+            <span className={`text-sm md:text-base font-semibold ${isCommentModalOpen ? "text-cyan-500" : "text-slate-700 dark:text-slate-200"}`}>
               {questionComments.length || 0}
             </span>
           </button>
 
           <button 
             onClick={handleShare}
-            className="flex items-center gap-2 py-1.5 px-3 rounded-xl text-slate-600 hover:text-cyan-500 dark:text-slate-400 dark:hover:text-cyan-400 hover:bg-slate-100/60 dark:hover:bg-white/5 transition-all active:scale-95 group/share"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-xl text-slate-600 hover:text-cyan-500 dark:text-slate-300 dark:hover:text-cyan-400 hover:bg-slate-100/60 dark:hover:bg-white/5 transition-all active:scale-95 group/share cursor-pointer"
             title="Share question"
           >
             <Send2 size={18} />
@@ -470,8 +470,8 @@ export default function RecentlyAsked({
       </div>
 
       {questions.length > 0 && (
-        <div className="glass-shell !shadow-none w-full md:max-w-2xl mx-auto flex flex-col gap-4 p-2 sm:p-5 rounded-3xl overflow-visible">
-          <div className="relative z-50 w-full flex items-center justify-between px-1 mb-6">
+        <div className="w-full md:max-w-2xl mx-auto flex flex-col gap-4 p-0 sm:p-1 overflow-visible">
+          <div className="relative z-50 w-full flex items-center justify-between px-1 mb-2">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
               Recently Asked

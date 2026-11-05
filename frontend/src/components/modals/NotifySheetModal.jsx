@@ -14,6 +14,7 @@ export default function NotifySheetModal({
   const [handleInput, setHandleInput] = useState("");
   const dragControls = useDragControls();
   const touchStartY = useRef(null);
+  const lastTapRef = useRef(0);
 
   // Sync initial handle when modal opens (NO autofocus)
   useEffect(() => {
@@ -38,6 +39,20 @@ export default function NotifySheetModal({
     };
   }, [isOpen, onClose]);
 
+  const handleDoubleTap = () => {
+    onClose();
+  };
+
+  const handleTouchEndHeader = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      handleDoubleTap();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
   const handleTouchStart = (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") return;
     touchStartY.current = e.touches[0].clientY;
@@ -46,7 +61,7 @@ export default function NotifySheetModal({
   const handleTouchMove = (e) => {
     if (touchStartY.current === null) return;
     const deltaY = e.touches[0].clientY - touchStartY.current;
-    if (deltaY > 70) {
+    if (deltaY > 60) {
       touchStartY.current = null;
       onClose();
     }
@@ -185,25 +200,30 @@ export default function NotifySheetModal({
             {/* Top drag handle indicator */}
             <div
               onPointerDown={(e) => dragControls.start(e)}
+              onDoubleClick={handleDoubleTap}
+              onTouchEnd={handleTouchEndHeader}
               style={{ touchAction: "none" }}
               className="w-full flex items-center justify-center pt-1 pb-3 cursor-grab active:cursor-grabbing select-none"
-              title="Drag down to close"
+              title="Double-click or drag down to close"
             >
-              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-2" />
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mb-2 pointer-events-none" />
             </div>
 
             {/* Header with Telegram Icon */}
             <div
               onPointerDown={(e) => dragControls.start(e)}
+              onDoubleClick={handleDoubleTap}
+              onTouchEnd={handleTouchEndHeader}
               style={{ touchAction: "none" }}
               className="flex items-center gap-3 mb-5 cursor-grab active:cursor-grabbing select-none"
+              title="Double-click or drag down to close"
             >
               <Telegram size={38} className="shrink-0 pointer-events-none" />
               <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight pointer-events-none">
                   Telegram Notification
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 pointer-events-none">
                   Get notified the moment Sila answers your question
                 </p>
               </div>
