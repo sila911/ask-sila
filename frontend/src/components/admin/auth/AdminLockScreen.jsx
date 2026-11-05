@@ -9,11 +9,13 @@ export default function AdminLockScreen({
   handleVerifyOtp,
   handleResendOtp,
   showAdminToast,
+  setIsAdminUnlocked,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const basePath = "/fuckoff";
+  const MASKED_ADMIN_EMAIL = "s*********v@gmail.com";
 
   // Determine initial step from current URL pathname
   const getStepFromPath = (path) => {
@@ -55,6 +57,12 @@ export default function AdminLockScreen({
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetToken, setResetToken] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("sila_admin_reset_token") || "";
+    }
+    return "";
+  });
 
   // ─── 2FA OTP State ────────────────────────────────────────────────────────
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -309,15 +317,23 @@ export default function AdminLockScreen({
     setInfoMessage("");
     try {
       const res = await requestPasswordReset(email);
-      const msg = res.message || "6-digit reset code sent to your Gmail!";
+      if (res.token) {
+        setResetToken(res.token);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("sila_admin_reset_token", res.token);
+        }
+      }
+      const msg = res.message || "6-digit reset code sent to your Telegram!";
       setInfoMessage(msg);
-      showAdminToast?.("Code Sent", msg, "info");
+      showAdminToast?.("Code Dispatched", msg, "info");
       sounds.playSuccess();
       changeStep("reset");
     } catch (err) {
       const msg = err.message || "Failed to send reset code.";
       setError(msg);
       showAdminToast?.("Verification Failed", msg, "error");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 600);
     } finally {
       setIsLoading(false);
     }
@@ -339,24 +355,43 @@ export default function AdminLockScreen({
       return;
     }
 
+    const activeToken = resetToken || (typeof window !== "undefined" && sessionStorage.getItem("sila_admin_reset_token"));
+    if (!activeToken) {
+      const msg = "Reset session expired. Please request a new code.";
+      setError(msg);
+      showAdminToast?.("Session Expired", msg, "error");
+      changeStep("forgot");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     setInfoMessage("");
     try {
-      const res = await submitPasswordReset(resetCode, newPassword, email);
-      const msg = res.message || "Password reset successful! Please unlock.";
-      showAdminToast?.("Success", msg, "success");
+      const res = await submitPasswordReset(resetCode, newPassword, activeToken);
+      const msg = res.message || "Password updated successfully! Welcome back.";
+      showAdminToast?.("Access Restored", msg, "success");
       sounds.playSuccess();
-      changeStep("password");
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("sila_admin_reset_token");
+      }
       setPassword("");
       setResetCode("");
       setNewPassword("");
       setError("");
       setInfoMessage("");
+
+      // Auto-login directly into Admin Dashboard (User Option A1)
+      if (setIsAdminUnlocked) {
+        setIsAdminUnlocked(true);
+      }
+      navigate(basePath);
     } catch (err) {
       const msg = err.message || "Failed to reset password.";
       setError(msg);
       showAdminToast?.("Reset Failed", msg, "error");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 600);
     } finally {
       setIsLoading(false);
     }
@@ -504,7 +539,7 @@ export default function AdminLockScreen({
         {/* ─── Step: Forgot Password (Enter Admin Gmail) ─── */}
         {step === "forgot" && (
           <>
-            <div className="flex flex-col items-center justify-center text-center pt-2 mb-6">
+            <div className="flex flex-col items-center justify-center text-center pt-2 mb-4">
               <div className="relative mb-3 flex items-center justify-center">
                 <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl scale-125 pointer-events-none" />
                 <img
@@ -514,11 +549,15 @@ export default function AdminLockScreen({
                 />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-['Racing_Sans_One',sans-serif] tracking-wide text-[color:var(--app-text)]">
-                VERIFY GMAIL
+                VERIFY EMAIL
               </h2>
               <p className="text-xs sm:text-sm text-[color:var(--app-muted)] mt-1 max-w-xs">
-                Enter your Gmail to verify
+                Enter registered admin email to receive Telegram OTP
               </p>
+              <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-600 dark:text-cyan-400 font-mono text-xs shadow-sm">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-zinc-400">Hint:</span>
+                <span className="font-semibold tracking-wider font-mono">{MASKED_ADMIN_EMAIL}</span>
+              </div>
             </div>
 
             {infoMessage && (
@@ -543,8 +582,8 @@ export default function AdminLockScreen({
                     setEmail(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="Enter admin Gmail address..."
-                  className="w-full h-12 pl-4 pr-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                  placeholder={MASKED_ADMIN_EMAIL}
+                  className="w-full h-12 pl-4 pr-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 text-center font-medium font-sans"
                   autoFocus
                   required
                 />
@@ -561,7 +600,7 @@ export default function AdminLockScreen({
                     Sending Code...
                   </>
                 ) : (
-                  "Send Code"
+                  "Send Telegram Code"
                 )}
               </button>
             </form>
@@ -584,7 +623,7 @@ export default function AdminLockScreen({
                 RESET PASSWORD
               </h2>
               <p className="text-xs sm:text-sm text-[color:var(--app-muted)] mt-1 max-w-xs">
-                Enter the 6-digit code sent to <span className="font-semibold text-cyan-500">{email}</span>
+                Enter the 6-digit code sent to your <span className="font-semibold text-cyan-500">Telegram</span>
               </p>
             </div>
 
@@ -611,8 +650,8 @@ export default function AdminLockScreen({
                     setResetCode(e.target.value.replace(/[^0-9]/g, ""));
                     if (error) setError("");
                   }}
-                  placeholder="Enter 6-digit reset code"
-                  className="w-full h-12 px-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center font-mono font-bold tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                  placeholder="000000"
+                  className="w-full h-12 px-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center font-mono font-bold tracking-[0.35em] text-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
                   autoFocus
                   required
                 />
@@ -626,14 +665,14 @@ export default function AdminLockScreen({
                     setNewPassword(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="Enter new admin password..."
+                  placeholder="Create new admin password..."
                   className="w-full h-12 pl-4 pr-12 rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
                   aria-label="Toggle password visibility"
                 >
                   {showNewPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
@@ -648,24 +687,34 @@ export default function AdminLockScreen({
                 {isLoading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Updating Password...
+                    Resetting & Unlocking...
                   </>
                 ) : (
-                  "Update Password"
+                  "Reset & Unlock Dashboard"
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  changeStep("forgot");
-                  setError("");
-                  setInfoMessage("");
-                }}
-                className="w-full text-center text-xs text-[color:var(--app-muted)] hover:text-slate-200 cursor-pointer"
-              >
-                Change Email
-              </button>
+              <div className="flex items-center justify-between pt-1 px-1">
+                <button
+                  type="button"
+                  onClick={handleForgot}
+                  disabled={isLoading}
+                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-medium disabled:opacity-50"
+                >
+                  Resend Telegram Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    changeStep("forgot");
+                    setError("");
+                    setInfoMessage("");
+                  }}
+                  className="text-xs text-[color:var(--app-muted)] hover:text-slate-200 cursor-pointer font-medium"
+                >
+                  Change Email
+                </button>
+              </div>
             </form>
           </>
         )}

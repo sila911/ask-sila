@@ -18,6 +18,7 @@ const TAB_TRANSITION = {
 
 export default function AdminPage({
   isAdminUnlocked,
+  setIsAdminUnlocked,
   isAuthChecking,
   handleAdminAuth,
   handleVerifyOtp,
@@ -64,6 +65,7 @@ export default function AdminPage({
         handleVerifyOtp={handleVerifyOtp}
         handleResendOtp={handleResendOtp}
         showAdminToast={showAdminToast}
+        setIsAdminUnlocked={setIsAdminUnlocked}
       />
     );
   }

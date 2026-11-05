@@ -147,6 +147,42 @@ export async function logout(req, res) {
   return res.json({ ok: true, message: "Logged out successfully." });
 }
 
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ ok: false, message: "Email address is required." });
+    }
+
+    if (email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      return res.status(400).json({ ok: false, message: "Email does not match our admin records." });
+    }
+
+    // Generate 6-digit OTP code & challenge token
+    const otp = generateOtpCode();
+    const { challengeToken, expiresAt } = createOtpChallenge(otp, ADMIN_EMAIL);
+
+    // Send OTP to Sila's Telegram
+    const sent = await sendTelegramMessage(
+      `🔐 <b>Ask Sila Password Reset</b>\n\nYour 6-digit password reset code is:\n\n<code>${otp}</code>\n\n<i>This code expires in 5 minutes. Do not share this code with anyone.</i>`
+    );
+
+    if (!sent) {
+      console.warn("Could not dispatch Telegram password reset message.");
+    }
+
+    return res.json({
+      ok: true,
+      token: challengeToken,
+      expiresAt,
+      message: "6-digit reset code sent to your Telegram.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return res.status(500).json({ ok: false, message: "Failed to send reset code." });
+  }
+}
+
 export async function resetPassword(req, res) {
   try {
     const { code, token, newPassword } = req.body;
@@ -154,8 +190,8 @@ export async function resetPassword(req, res) {
       return res.status(400).json({ ok: false, message: "All fields are required." });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ ok: false, message: "Password must be at least 6 characters." });
+    if (newPassword.length < 4) {
+      return res.status(400).json({ ok: false, message: "Password must be at least 4 characters." });
     }
 
     const verification = verifyOtpChallenge(String(code).trim(), token);
@@ -165,12 +201,42 @@ export async function resetPassword(req, res) {
 
     const hashed = await hashPassword(newPassword);
 
-    await db
-      .update(adminUsers)
-      .set({ passwordHash: hashed, updatedAt: new Date() })
-      .where(eq(adminUsers.email, ADMIN_EMAIL));
+    // Check if admin user exists in DB, update or insert
+    const admin = await db
+      .select()
+      .from(adminUsers)
+      .where(eq(adminUsers.email, ADMIN_EMAIL))
+      .then((rows) => rows[0]);
 
-    return res.json({ ok: true, message: "Password updated successfully." });
+    if (!admin) {
+      await db.insert(adminUsers).values({
+        email: ADMIN_EMAIL,
+        passwordHash: hashed,
+      });
+    } else {
+      await db
+        .update(adminUsers)
+        .set({ passwordHash: hashed, updatedAt: new Date() })
+        .where(eq(adminUsers.email, ADMIN_EMAIL));
+    }
+
+    // Generate JWT Session Token so admin is logged in immediately
+    const jwtToken = generateToken({ email: ADMIN_EMAIL, role: "admin" });
+
+    // Set HttpOnly Cookie
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return res.json({
+      ok: true,
+      token: jwtToken,
+      admin: { email: ADMIN_EMAIL },
+      message: "Password updated successfully. Welcome back!",
+    });
   } catch (error) {
     console.error("Reset password error:", error);
     return res.status(500).json({ ok: false, message: "Failed to reset password." });

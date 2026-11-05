@@ -6,6 +6,7 @@ import {
   getMe,
   logout,
   resetPassword,
+  forgotPassword,
 } from "../controllers/auth.controller.js";
 import { requireAdminAuth } from "../middleware/auth.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
@@ -15,6 +16,7 @@ const router = Router();
 router.post("/login", authLimiter, login);
 router.post("/verify-2fa", authLimiter, verify2fa);
 router.post("/request-otp", authLimiter, requestOtp);
+router.post("/forgot-password", authLimiter, forgotPassword);
 router.get("/me", requireAdminAuth, getMe);
 router.post("/logout", logout);
 router.post("/reset-password", authLimiter, resetPassword);

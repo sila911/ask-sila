@@ -98,18 +98,33 @@ export async function verifyTelegramOtp(otp, token) {
 
 export async function requestPasswordReset(inputEmail) {
   const email = (inputEmail || "").trim().toLowerCase();
+  if (!email) {
+    throw new Error("Please enter your admin Gmail address.");
+  }
   if (email !== ADMIN_EMAIL.toLowerCase()) {
     throw new Error("Email doesn't match admin email.");
   }
 
-  const res = await apiRequest("/auth/request-otp", { method: "POST" });
-  return { message: "6-digit reset code sent to your Telegram!" };
+  const res = await apiRequest("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+  });
+
+  return {
+    ok: true,
+    token: res.token,
+    expiresAt: res.expiresAt,
+    message: res.message || "6-digit reset code sent to your Telegram!",
+  };
 }
 
 export async function submitPasswordReset(code, newPassword, token) {
   const cleanCode = String(code).trim();
   if (!cleanCode || cleanCode.length < 6) {
     throw new Error("Please enter the full 6-digit verification code.");
+  }
+  if (!token) {
+    throw new Error("Reset session expired. Please request a new code.");
   }
   if (!newPassword || newPassword.length < 4) {
     throw new Error("New password must be at least 4 characters.");
@@ -124,7 +139,16 @@ export async function submitPasswordReset(code, newPassword, token) {
     },
   });
 
-  return { message: res.message || "Password reset successful!" };
+  if (res.token && typeof window !== "undefined") {
+    localStorage.setItem(ADMIN_TOKEN_KEY, res.token);
+  }
+  set2FAVerified(true);
+
+  return {
+    ok: true,
+    token: res.token,
+    message: res.message || "Password reset successful!",
+  };
 }
 
 export async function logoutAdmin() {

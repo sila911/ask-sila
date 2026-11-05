@@ -109,6 +109,7 @@ export default function App() {
   const adminPageElement = (
     <AdminPage
       isAdminUnlocked={isAdminUnlocked}
+      setIsAdminUnlocked={setIsAdminUnlocked}
       isAuthChecking={isAuthChecking}
       handleAdminAuth={handleAdminAuth}
       handleVerifyOtp={handleVerifyOtpWithNav}
