@@ -9,6 +9,7 @@
     "dev:frontend": "npm run dev --prefix frontend",
     "start:backend": "npm run start --prefix backend",
     "start:prod": "concurrently -n \"api,client\" -c \"cyan,green\" \"npm run start --prefix backend\" \"npm run preview --prefix frontend\"",
+    "clean:ports": "npx --yes kill-port 5000 5173",
     "build": "npm run build --prefix frontend",
     "preview": "npm run preview --prefix frontend"
   },
