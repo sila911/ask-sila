@@ -5,11 +5,14 @@ This file provides the single source of truth for the codebase, UI design system
 ---
 
 ## 1. Project Overview & Tech Stack
-- **Application**: "Ask Sila Anything" (Interactive Q&A platform with Sila, real-time typing simulation, reactions, comments, design showcase, and admin dashboard).
-- **Core Stack**: React 18 + Vite + Tailwind CSS + Framer Motion.
-- **Backend / Storage**: Supabase Database & Realtime with automatic localStorage offline synchronization (`storage.js`).
+- **Application**: "Ask Sila Anything" (Interactive Q&A platform with Sila, real-time typing simulation, reactions, comments, design showcase, Telegram 2-way bot management, and admin dashboard).
+- **Frontend Stack**: React 18 + Vite + Tailwind CSS + Framer Motion + Iconsax React.
+- **Backend Stack**: Node.js 22 LTS + Express + Drizzle ORM + Neon Serverless PostgreSQL (`@neondatabase/serverless` with `ws` WebSocket connection).
+- **Telegram Bot Integration**: Real-time notifications on new questions, interactive swipe-to-reply answering directly from Telegram chat, `/pending` queue, `/status` diagnostics, and 6-digit 2FA / Password Reset OTP verification.
+- **Storage & State**: Express REST API (`apiClient.js`) with client-side localStorage synchronization and optimistic UI updates (`storage.js`).
 - **Icons**: Iconsax React (`iconsax-react`) with Linear/Bold variants.
 - **Audio Engine**: Zero-asset Web Audio API synthesizer (`utils/soundEffects.js`).
+- **Deployment**: Render Web Service (Dockerized Node.js 22) for Backend + Vercel for Frontend.
 
 ---
 
