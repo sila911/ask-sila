@@ -1,5 +1,5 @@
-# Use official lightweight Node.js LTS Alpine image
-FROM node:20-alpine AS runner
+# Use official lightweight Node.js LTS Alpine image (Node 22 LTS)
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
