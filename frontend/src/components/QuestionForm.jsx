@@ -3,6 +3,7 @@ import { Shuffle, Send2, Refresh, CloseCircle, Warning2 } from 'iconsax-react'
 import { Telegram } from 'developer-icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import { checkRateLimit, recordSubmission, validateQuestionText } from '../lib/spamFilter'
+import { apiRequest } from '../lib/apiClient'
 import Toast from './ui/Toast'
 import NotifySheetModal from './modals/NotifySheetModal'
 import { sounds } from '../utils/soundEffects'
@@ -198,50 +199,20 @@ export default function QuestionForm({ onSuccess, onSubmitQuestion }) {
     setIsLoading(true)
 
     try {
-      const res = await fetch('/api/telegram-send', {
+      await apiRequest('/questions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: nextQuestion, notifyHandle: cleanNotifyHandle })
+        body: { question: nextQuestion, notifyHandle: cleanNotifyHandle }
       })
 
-      if (res.ok) {
-        recordSubmission()
-        setQuestion('')
-        setNotifyHandle('')
-        setShowNotifyInput(false)
-        setToast(null)
-        onSuccess()
-      } else {
-        const contentType = res.headers.get('content-type') || ''
-        let message = `Error sending message (${res.status}).`
-        let serverMessage = ''
-
-        if (contentType.includes('application/json')) {
-          const data = await res.json().catch(() => ({}))
-          serverMessage = data.message || ''
-        } else {
-          const text = await res.text().catch(() => '')
-          if (text) {
-            serverMessage = text.slice(0, 160)
-          }
-        }
-
-        if (serverMessage) {
-          message = serverMessage
-        } else if (res.status === 500) {
-          message = 'API server error (500). Please try again in a moment.'
-        }
-
-        setFormError(message)
-        setToast({
-          type: 'error',
-          title: 'Server Error',
-          detail: message,
-        })
-      }
+      recordSubmission()
+      setQuestion('')
+      setNotifyHandle('')
+      setShowNotifyInput(false)
+      setToast(null)
+      onSuccess()
     } catch (error) {
       console.error(error)
-      const errDetail = 'Cannot reach server. Please check your connection and try again.'
+      const errDetail = error.message || 'Cannot reach server. Please check your connection and try again.'
       setFormError(errDetail)
       setToast({
         type: 'error',

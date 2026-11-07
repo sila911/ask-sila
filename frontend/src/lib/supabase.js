@@ -1,10 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials are missing. Check your .env file.')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Ask Sila Anything now runs on the Render backend + Neon PostgreSQL.
+// Supabase realtime is optional and gracefully mocked if credentials are not configured.
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : {
+        channel: () => ({
+          on: () => ({ subscribe: () => ({}) }),
+          subscribe: () => ({}),
+          send: () => Promise.resolve(),
+        }),
+        removeChannel: () => {},
+      };

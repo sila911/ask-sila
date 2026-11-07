@@ -130,14 +130,6 @@ export function useAppData(showAdminToast) {
       setHasAskedQuestion(true);
       localStorage.setItem("hasAskedQuestion", "true");
 
-      const questionId = formatted?.id || null;
-
-      fetch("/api/telegram-send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: questionText, questionId, notifyHandle }),
-      }).catch((err) => console.error("Failed to send Telegram notification:", err));
-
       return formatted;
     } catch (error) {
       console.error("submitUserQuestion error:", error);
