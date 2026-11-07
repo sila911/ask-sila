@@ -1,5 +1,9 @@
 // Base API Client for Ask Sila Backend
-const API_BASE = "/api";
+// In development, defaults to '/api' (proxied by Vite to http://localhost:5000)
+// In production, uses the deployed Render backend URL (e.g. VITE_API_URL=https://ask-sila-backend.onrender.com)
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
+  : "/api";
 
 export async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
