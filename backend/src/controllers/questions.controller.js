@@ -83,7 +83,9 @@ export async function createQuestion(req, res) {
       `📬 <b>New Question on Ask Sila!</b>\n\n` +
       `<b>Question:</b> "${cleanQuestion}"\n` +
       `<b>From:</b> ${cleanHandle ? `@${cleanHandle}` : "Anonymous"}\n` +
-      `<b>ID:</b> <code>#${newId}</code>`
+      `<b>ID:</b> <code>#${newId}</code>\n\n` +
+      `<i>💡 Swipe reply to this message to answer, or type:</i>\n` +
+      `<code>/reply ${newId} &lt;your answer&gt;</code>`
     ).catch((err) => console.error("Telegram notification error:", err));
 
     return res.status(201).json({ ok: true, data: inserted });

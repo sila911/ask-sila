@@ -1,6 +1,7 @@
 import "./config/env.js";
 import app from "./app.js";
 import { pool } from "./db/index.js";
+import { startTelegramPolling } from "./services/telegramPoller.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -14,6 +15,8 @@ async function startServer() {
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 Ask Sila Backend Server listening on http://localhost:${PORT}`);
+      // Start background Telegram poller for live replies (both local & production fallback)
+      startTelegramPolling().catch((err) => console.error("Telegram poller error:", err));
     });
 
     server.on("error", (err) => {
