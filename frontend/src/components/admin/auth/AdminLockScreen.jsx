@@ -516,7 +516,7 @@ export default function AdminLockScreen({
     setInfoMessage("");
 
     try {
-      const res = await requestPasswordReset(email || "semsila.dev@gmail.com");
+      const res = await requestPasswordReset(email);
       if (res.token) {
         setResetToken(res.token);
         if (typeof window !== "undefined") {

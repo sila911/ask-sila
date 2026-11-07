@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "semsila.dev@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 export function requireAdminAuth(req, res, next) {
   // 1. Try cookie first

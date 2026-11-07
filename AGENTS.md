@@ -70,3 +70,13 @@ All sound effects are synthesized dynamically via Web Audio API:
 - **Swipe-to-Select**: Always support smooth finger swiping on mobile using geometric proximity detection.
 - **Ghost Click Prevention**: Avoid synthetic click double-firing on mobile touch endpoints.
 - **Viewport Bounds**: Clamp floating popups and dropdowns so they never overflow off small mobile screens.
+
+---
+
+## 5. Security Invariants: Zero Hardcoded Sensitive Values
+
+Agents and contributors must strictly enforce:
+- **Never commit production URLs**: Base URLs (Render, Vercel, Supabase, Neon) must NEVER be hardcoded into `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, or `.yaml` files. All API endpoints must resolve strictly from environment variables (`VITE_API_URL`, `CLIENT_URL`, `DATABASE_URL`).
+- **Never commit personal emails or identities**: Personal emails must NEVER appear as default values, string fallbacks (`|| "..."`), UI placeholders, example text, or in SQL migration scripts. Always use generic placeholders like `admin@example.com` or `"Enter registered admin email..."`.
+- **Zero Fallback Secrets**: Secrets, tokens, and credentials (e.g. `JWT_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) must NEVER have hardcoded fallback strings. If missing, fail fast with a clear startup error.
+- **Deployment Manifests**: In `render.yaml`, use `sync: false` for all secrets and variables so they are supplied via the dashboard, never checked into version control. In `vercel.json`, keep rewrites generic.

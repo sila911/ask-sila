@@ -45,7 +45,7 @@ export default function AdminForgotResetView({
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. semsila.dev@gmail.com"
+              placeholder="Enter registered admin email..."
               className="h-11 w-full rounded-xl px-3 mt-1 bg-[color:var(--input-bg)] border border-[color:var(--input-border)] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm"
               required
             />

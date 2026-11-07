@@ -125,22 +125,22 @@ CREATE POLICY "Public Read Access" ON designs
     FOR SELECT 
     USING (true);
 
--- Only verified admin (semsila.dev@gmail.com) can insert/update/delete designs
+-- Only verified admin (your-admin-email@example.com) can insert/update/delete designs
 CREATE POLICY "Admin Insert Access" ON designs 
     FOR INSERT 
     TO authenticated 
-    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    WITH CHECK (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 CREATE POLICY "Admin Update Access" ON designs 
     FOR UPDATE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
-    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 CREATE POLICY "Admin Delete Access" ON designs 
     FOR DELETE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- -----------------------------------------------------------------
 -- 2. QUESTIONS POLICIES
@@ -160,14 +160,14 @@ CREATE POLICY "Public Insert Access" ON questions
 CREATE POLICY "Admin Update Access" ON questions 
     FOR UPDATE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
-    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- Only Admin can permanently delete questions
 CREATE POLICY "Admin Delete Access" ON questions 
     FOR DELETE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- -----------------------------------------------------------------
 -- 3. COMMENTS POLICIES
@@ -186,14 +186,14 @@ CREATE POLICY "Public Insert Access" ON comments
 CREATE POLICY "Admin Update Access" ON comments 
     FOR UPDATE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com')
-    WITH CHECK (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com')
+    WITH CHECK (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- Only Admin can delete comments
 CREATE POLICY "Admin Delete Access" ON comments 
     FOR DELETE 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- -----------------------------------------------------------------
 -- 4. EVENTS POLICIES (Internal Logging & Analytics)
@@ -202,7 +202,7 @@ CREATE POLICY "Admin Delete Access" ON comments
 CREATE POLICY "Admin Read Access" ON events 
     FOR SELECT 
     TO authenticated 
-    USING (auth.jwt() ->> 'email' = 'semsila.dev@gmail.com');
+    USING (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
 
 -- Public users can log events (e.g. page views, question submitted)
 CREATE POLICY "Public Insert Access" ON events 

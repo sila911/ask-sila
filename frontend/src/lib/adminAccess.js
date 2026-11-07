@@ -1,6 +1,5 @@
 import { apiRequest } from "./apiClient";
 
-const ADMIN_EMAIL = "semsila.dev@gmail.com";
 const TWO_FACTOR_KEY = "sila_admin_2fa_verified";
 const ADMIN_TOKEN_KEY = "sila_admin_token";
 
@@ -99,10 +98,7 @@ export async function verifyTelegramOtp(otp, token) {
 export async function requestPasswordReset(inputEmail) {
   const email = (inputEmail || "").trim().toLowerCase();
   if (!email) {
-    throw new Error("Please enter your admin Gmail address.");
-  }
-  if (email !== ADMIN_EMAIL.toLowerCase()) {
-    throw new Error("Email doesn't match admin email.");
+    throw new Error("Please enter your admin email address.");
   }
 
   const res = await apiRequest("/auth/forgot-password", {

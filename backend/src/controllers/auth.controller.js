@@ -14,7 +14,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "semsila.dev@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+if (!ADMIN_EMAIL) {
+  console.warn("⚠️ WARNING: ADMIN_EMAIL environment variable is not configured.");
+}
 
 export async function login(req, res) {
   try {
