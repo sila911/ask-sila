@@ -23,6 +23,7 @@ app.use(helmet());
 // CORS Configuration
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  "https://asksila.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:3000",
@@ -33,10 +34,15 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        process.env.NODE_ENV !== "production"
+      ) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive in development
+      return callback(null, true);
     },
     credentials: true,
   })

@@ -13,8 +13,8 @@
   ],
   "rewrites": [
     {
-      "source": "/(api/.*)",
-      "destination": "/$1"
+      "source": "/api/:path*",
+      "destination": "https://ask-sila.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
