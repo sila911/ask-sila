@@ -20,37 +20,49 @@ const app = express();
 // Security Headers
 app.use(helmet());
 
-// CORS Configuration - purely driven by CLIENT_URL environment variable
-const allowedOrigins = (process.env.CLIENT_URL || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+// CORS Configuration
+const corsOptions = {
+  origin: (origin, callback) => {
+    // 1. Allow server-to-server, curl, mobile apps, or local health checks
+    if (!origin) return callback(null, true);
 
-if (process.env.NODE_ENV !== "production") {
-  allowedOrigins.push(
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173"
-  );
-}
+    const cleanOrigin = origin.replace(/\/+$/, "");
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, server-to-server, curl)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+    // 2. Allow explicitly configured CLIENT_URL(s) (supports comma-separated list and trims trailing slashes)
+    const configuredOrigins = (process.env.CLIENT_URL || "")
+      .split(",")
+      .map((url) => url.trim().replace(/\/+$/, ""))
+      .filter(Boolean);
+
+    if (configuredOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+
+    // 3. Allow Vercel deployments (production domain & branch previews)
+    if (cleanOrigin.endsWith(".vercel.app")) {
+      return callback(null, true);
+    }
+
+    // 4. Allow local development ports
+    if (process.env.NODE_ENV !== "production") {
+      if (
+        cleanOrigin.startsWith("http://localhost:") ||
+        cleanOrigin.startsWith("http://127.0.0.1:")
+      ) {
         return callback(null, true);
       }
-      if (process.env.NODE_ENV !== "production") {
-        return callback(null, true);
-      }
-      return callback(new Error("Blocked by CORS policy"));
-    },
-    credentials: true,
-  })
-);
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Body Parsing & Cookies
 app.use(express.json({ limit: "5mb" }));
